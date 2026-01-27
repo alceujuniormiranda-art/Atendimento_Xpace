@@ -29,7 +29,7 @@ const ZAPI_HEADERS = {
 const BOT_TIMEOUT_MINUTES = parseInt(process.env.BOT_TIMEOUT_MINUTES) || 30;
 const LINK_ESCOLA = process.env.LINK_ESCOLA || 'https://links.nextfit.bio/5e3eXmh';
 const IMAGE_PLANOS_URL = process.env.IMAGE_PLANOS_URL || '';
-// MAKE_WEBHOOK_URL removido - bot funciona independente
+const ADMIN_PHONE = process.env.ADMIN_PHONE || '5547999110328';
 
 // ============================================
 // FUNÇÕES DE BANCO DE DADOS
@@ -107,6 +107,71 @@ async function getCustomResponse(keyword) {
   return data;
 }
 
+async function getConversationSummary(phoneNumber) {
+  // Buscar últimas mensagens da conversa
+  const { data, error } = await supabase
+    .from('message_logs')
+    .select('message, is_from_bot, created_at')
+    .eq('phone_number', phoneNumber)
+    .order('created_at', { ascending: false })
+    .limit(10);
+
+  if (error || !data || data.length === 0) {
+    return 'Sem histórico disponível';
+  }
+
+  // Identificar modalidade de interesse
+  const allMessages = data.map(m => m.message.toLowerCase()).join(' ');
+  let interesse = '';
+  
+  if (allMessages.includes('ballet') || allMessages.includes('balé')) interesse = 'Ballet';
+  else if (allMessages.includes('jazz')) interesse = 'Jazz';
+  else if (allMessages.includes('hip') || allMessages.includes('hop')) interesse = 'Hip Hop';
+  else if (allMessages.includes('contempor')) interesse = 'Dança Contemporânea';
+  else if (allMessages.includes('funk')) interesse = 'Funk';
+  else if (allMessages.includes('sertanejo')) interesse = 'Sertanejo';
+  else if (allMessages.includes('forró') || allMessages.includes('forro')) interesse = 'Forró';
+  else if (allMessages.includes('salsa') || allMessages.includes('samba')) interesse = 'Danças Latinas';
+  else if (allMessages.includes('plano') || allMessages.includes('preço') || allMessages.includes('valor')) interesse = 'Planos/Preços';
+  else if (allMessages.includes('horário') || allMessages.includes('horario')) interesse = 'Horários';
+  else if (allMessages.includes('experimental') || allMessages.includes('aula teste')) interesse = 'Aula Experimental';
+  
+  // Pegar últimas mensagens do cliente (não do bot)
+  const clientMessages = data
+    .filter(m => !m.is_from_bot)
+    .slice(0, 3)
+    .map(m => m.message)
+    .reverse();
+
+  let summary = '';
+  if (interesse) {
+    summary += `🎯 *Interesse:* ${interesse}\n`;
+  }
+  if (clientMessages.length > 0) {
+    summary += `💬 *Últimas msgs:*\n${clientMessages.join('\n')}`;
+  }
+  
+  return summary || 'Cliente pediu atendente';
+}
+
+async function notifyAdmin(clientPhone, contactName) {
+  const summary = await getConversationSummary(clientPhone);
+  const whatsappLink = `https://wa.me/${clientPhone.replace(/\D/g, '')}`;
+  
+  const message = `🚨 *NOVO ATENDIMENTO*
+
+👤 *Contato:* ${contactName || clientPhone}
+📱 *Telefone:* ${clientPhone}
+🔗 *Link:* ${whatsappLink}
+
+${summary}
+
+_Clique no link para abrir a conversa_`;
+
+  await sendTextMessage(ADMIN_PHONE, message);
+  console.log(`📢 Admin notificado sobre ${clientPhone}`);
+}
+
 // ============================================
 // FUNÇÕES DE ENVIO - Z-API
 // ============================================
@@ -177,6 +242,12 @@ async function processMessage(phoneNumber, message) {
   // Comando /stop - pausar bot
   if (msgLower === '/stop' || msgLower === 'stop') {
     await pauseBot(phoneNumber);
+    
+    // Notificar admin sobre novo atendimento
+    notifyAdmin(phoneNumber, null).catch(err => {
+      console.error('Erro ao notificar admin:', err.message);
+    });
+    
     return {
       type: 'text',
       content: '⏸️ Bot pausado! Um atendente humano irá te atender em breve.\n\nDigite /start para voltar ao atendimento automático.'
@@ -322,6 +393,12 @@ Te esperamos! 💃🕺`
   // Opção 6 ou falar com atendente
   if (msgLower === '6' || msgLower.match(/(atendente|humano|pessoa|falar com alguém|falar com alguem|atendimento)/)) {
     await pauseBot(phoneNumber);
+    
+    // Notificar admin sobre novo atendimento
+    notifyAdmin(phoneNumber, null).catch(err => {
+      console.error('Erro ao notificar admin:', err.message);
+    });
+    
     return {
       type: 'text',
       content: `👤 *Atendimento Humano*
