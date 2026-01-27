@@ -16,7 +16,14 @@ const supabase = createClient(
 // Configurações Z-API
 const ZAPI_INSTANCE_ID = process.env.ZAPI_INSTANCE_ID;
 const ZAPI_TOKEN = process.env.ZAPI_TOKEN;
+const ZAPI_CLIENT_TOKEN = process.env.ZAPI_CLIENT_TOKEN;
 const ZAPI_BASE_URL = `https://api.z-api.io/instances/${ZAPI_INSTANCE_ID}/token/${ZAPI_TOKEN}`;
+
+// Headers padrão para Z-API (inclui Client-Token se configurado)
+const ZAPI_HEADERS = {
+  'Content-Type': 'application/json',
+  ...(ZAPI_CLIENT_TOKEN && { 'Client-Token': ZAPI_CLIENT_TOKEN })
+};
 
 // Outras configurações
 const BOT_TIMEOUT_MINUTES = parseInt(process.env.BOT_TIMEOUT_MINUTES) || 30;
@@ -130,7 +137,8 @@ async function sendTextMessage(phoneNumber, text) {
       {
         phone: phone,
         message: text
-      }
+      },
+      { headers: ZAPI_HEADERS }
     );
     await logMessage(phoneNumber, text, true);
     console.log(`✅ Mensagem enviada para ${phone}`);
@@ -150,7 +158,8 @@ async function sendImage(phoneNumber, imageUrl, caption = '') {
         phone: phone,
         image: imageUrl,
         caption: caption
-      }
+      },
+      { headers: ZAPI_HEADERS }
     );
     await logMessage(phoneNumber, `[IMAGEM] ${caption}`, true);
     console.log(`✅ Imagem enviada para ${phone}`);
