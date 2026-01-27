@@ -28,7 +28,10 @@ const ZAPI_HEADERS = {
 // Outras configurações
 const BOT_TIMEOUT_MINUTES = parseInt(process.env.BOT_TIMEOUT_MINUTES) || 30;
 const LINK_ESCOLA = process.env.LINK_ESCOLA || 'https://links.nextfit.bio/5e3eXmh';
-const IMAGE_PLANOS_URL = process.env.IMAGE_PLANOS_URL || '';
+const IMAGE_PLANOS_URL = process.env.IMAGE_PLANOS_URL || 'https://files.manuscdn.com/user_upload_by_module/session_file/310519663188334106/JIyArqOviydhbQnG.jpeg';
+const IMAGE_HORARIOS_SEG_QUA = process.env.IMAGE_HORARIOS_SEG_QUA || 'https://files.manuscdn.com/user_upload_by_module/session_file/310519663188334106/DEJsiUKIQIcQnDHg.PNG';
+const IMAGE_HORARIOS_TER_QUI = process.env.IMAGE_HORARIOS_TER_QUI || 'https://files.manuscdn.com/user_upload_by_module/session_file/310519663188334106/PCCVHpRiHdafUFBI.PNG';
+const IMAGE_HORARIOS_SEX_SAB = process.env.IMAGE_HORARIOS_SEX_SAB || 'https://files.manuscdn.com/user_upload_by_module/session_file/310519663188334106/MNVAZvMbWjIkLVQt.PNG';
 const ADMIN_PHONE = process.env.ADMIN_PHONE || '5547999110328';
 
 // ============================================
@@ -327,15 +330,17 @@ Quer agendar uma aula experimental gratuita? Digite *4*! 🎉`
   // Opção 2 ou perguntas sobre modalidades
   if (msgLower === '2' || msgLower.match(/(modalidade|estilo|tipo de dança|aula|curso|ballet|jazz|hip hop|funk|dança)/)) {
     return {
-      type: 'text',
-      content: `💃 *Nossas Modalidades:*
+      type: 'multiple_images',
+      images: [
+        { url: IMAGE_HORARIOS_SEG_QUA, caption: '📅 *Segunda e Quarta*' },
+        { url: IMAGE_HORARIOS_TER_QUI, caption: '📅 *Terça e Quinta*' },
+        { url: IMAGE_HORARIOS_SEX_SAB, caption: '📅 *Sexta e Sábado*' }
+      ],
+      content: `💃 *Nossas Modalidades e Horários!*
 
-Oferecemos diversas modalidades para todas as idades!
+Confira acima nossa grade completa!
 
-Para ver todas as modalidades e horários, acesse nosso link:
-🔗 ${LINK_ESCOLA}
-
-Ou digite *3* para ver os horários das aulas!
+🔗 Mais informações: ${LINK_ESCOLA}
 
 Quer experimentar? Digite *4* para agendar sua aula experimental! 🎉`
     };
@@ -344,15 +349,19 @@ Quer experimentar? Digite *4* para agendar sua aula experimental! 🎉`
   // Opção 3 ou perguntas sobre horários
   if (msgLower === '3' || msgLower.match(/(horário|horario|hora|grade|agenda|quando|que horas)/)) {
     return {
-      type: 'text',
-      content: `📅 *Horários das Aulas*
+      type: 'multiple_images',
+      images: [
+        { url: IMAGE_HORARIOS_SEG_QUA, caption: '📅 *Segunda e Quarta*' },
+        { url: IMAGE_HORARIOS_TER_QUI, caption: '📅 *Terça e Quinta*' },
+        { url: IMAGE_HORARIOS_SEX_SAB, caption: '📅 *Sexta e Sábado*' }
+      ],
+      content: `📅 *Grade de Horários*
 
-Para ver nossa grade completa de horários, acesse:
-🔗 ${LINK_ESCOLA}
+Confira acima nossa programação completa!
 
-Lá você encontra todas as modalidades e horários disponíveis!
+🔗 Mais informações: ${LINK_ESCOLA}
 
-Quer agendar uma aula experimental? Digite *4*! 🎉`
+Quer experimentar? Digite *4* para agendar sua aula experimental! 🎉`
     };
   }
 
@@ -494,6 +503,17 @@ app.post('/webhook', async (req, res) => {
       // Enviar resposta
       if (response.type === 'image' && response.imageUrl) {
         await sendImage(phoneNumber, response.imageUrl, response.caption);
+      } else if (response.type === 'multiple_images' && response.images) {
+        // Enviar múltiplas imagens em sequência
+        for (const img of response.images) {
+          await sendImage(phoneNumber, img.url, img.caption);
+          // Pequeno delay entre imagens para não sobrecarregar
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+        // Enviar mensagem de texto final
+        if (response.content) {
+          await sendTextMessage(phoneNumber, response.content);
+        }
       } else {
         await sendTextMessage(phoneNumber, response.content);
       }
