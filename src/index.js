@@ -329,8 +329,53 @@ Quer agendar uma aula experimental gratuita? Digite *4*! 🎉`
     };
   }
 
-  // Opção 2 ou perguntas sobre modalidades
-  if (msgLower === '2' || msgLower.match(/(modalidade|estilo|tipo de dança|aula|curso|ballet|jazz|hip hop|funk|dança)/)) {
+  // Mapeamento de modalidades por dia
+  const MODALIDADES_SEG_QUA = ['street dance', 'ritmos', 'teatro', 'populares', 'contemporâneo', 'contemporaneo', 'fit dance', 'fitdance', 'acrobacia', 'jazz', 'muay thai'];
+  const MODALIDADES_TER_QUI = ['street dance', 'baby class', 'baby', 'jazz funk', 'jazzfunk', 'heels', 'ritmos', 'muay thai', 'dança de salão', 'danca de salao', 'salão', 'salao', 'k-pop', 'kpop', 'k pop', 'ballet', 'balé'];
+  const MODALIDADES_SEX_SAB = ['street dance', 'street funk', 'jiu jitsu', 'jiujitsu', 'jiu-jitsu', 'jazz funk', 'jazzfunk', 'heels', 'dancehall'];
+
+  // Função para encontrar imagens relevantes para uma modalidade
+  function getImagensParaModalidade(texto) {
+    const imagens = [];
+    
+    const temSegQua = MODALIDADES_SEG_QUA.some(mod => texto.includes(mod));
+    const temTerQui = MODALIDADES_TER_QUI.some(mod => texto.includes(mod));
+    const temSexSab = MODALIDADES_SEX_SAB.some(mod => texto.includes(mod));
+    
+    if (temSegQua) imagens.push({ url: IMAGE_HORARIOS_SEG_QUA, caption: '📅 *Segunda e Quarta*' });
+    if (temTerQui) imagens.push({ url: IMAGE_HORARIOS_TER_QUI, caption: '📅 *Terça e Quinta*' });
+    if (temSexSab) imagens.push({ url: IMAGE_HORARIOS_SEX_SAB, caption: '📅 *Sexta e Sábado*' });
+    
+    return imagens;
+  }
+
+  // Verificar se perguntou sobre uma modalidade específica
+  const modalidadesRegex = /(street dance|street funk|ritmos|teatro|populares|contemporâneo|contemporaneo|fit dance|fitdance|acrobacia|jazz funk|jazzfunk|jazz|muay thai|baby class|baby|heels|dança de salão|danca de salao|salão|salao|k-pop|kpop|k pop|ballet|balé|jiu jitsu|jiujitsu|jiu-jitsu|dancehall)/;
+  const matchModalidade = msgLower.match(modalidadesRegex);
+  
+  if (matchModalidade) {
+    const modalidade = matchModalidade[0];
+    const imagensRelevantes = getImagensParaModalidade(msgLower);
+    
+    if (imagensRelevantes.length > 0) {
+      return {
+        type: imagensRelevantes.length === 1 ? 'image' : 'multiple_images',
+        imageUrl: imagensRelevantes.length === 1 ? imagensRelevantes[0].url : undefined,
+        caption: imagensRelevantes.length === 1 ? imagensRelevantes[0].caption : undefined,
+        images: imagensRelevantes.length > 1 ? imagensRelevantes : undefined,
+        content: `💃 *${modalidade.charAt(0).toUpperCase() + modalidade.slice(1)}*
+
+Confira acima os horários dessa modalidade!
+
+🔗 Mais informações: ${LINK_ESCOLA}
+
+Quer experimentar? Digite *4* para agendar sua aula experimental! 🎉`
+      };
+    }
+  }
+
+  // Opção 2 ou perguntas gerais sobre modalidades (envia todas as imagens)
+  if (msgLower === '2' || msgLower.match(/(modalidade|estilo|tipo de dança|aula|curso|dança)/)) {
     return {
       type: 'multiple_images',
       images: [
