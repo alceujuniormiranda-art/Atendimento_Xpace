@@ -329,18 +329,35 @@ Quer agendar uma aula experimental gratuita? Digite *4*! 🎉`
     };
   }
 
-  // Mapeamento de modalidades por dia
-  const MODALIDADES_SEG_QUA = ['street dance', 'ritmos', 'teatro', 'populares', 'contemporâneo', 'contemporaneo', 'fit dance', 'fitdance', 'acrobacia', 'jazz', 'muay thai'];
-  const MODALIDADES_TER_QUI = ['street dance', 'baby class', 'baby', 'jazz funk', 'jazzfunk', 'heels', 'ritmos', 'muay thai', 'dança de salão', 'danca de salao', 'salão', 'salao', 'k-pop', 'kpop', 'k pop', 'ballet', 'balé'];
-  const MODALIDADES_SEX_SAB = ['street dance', 'street funk', 'jiu jitsu', 'jiujitsu', 'jiu-jitsu', 'jazz funk', 'jazzfunk', 'heels', 'dancehall'];
+  // Mapeamento de modalidades por dia (Jazz e Jazz Funk são diferentes!)
+  const MODALIDADES_SEG_QUA = ['street dance', 'ritmos', 'teatro', 'populares', 'contemporâneo', 'contemporaneo', 'fit dance', 'fitdance', 'acrobacia', 'muay thai'];
+  const MODALIDADES_TER_QUI = ['street dance', 'baby class', 'baby', 'heels', 'ritmos', 'muay thai', 'dança de salão', 'danca de salao', 'salão', 'salao', 'k-pop', 'kpop', 'k pop', 'ballet', 'balé'];
+  const MODALIDADES_SEX_SAB = ['street dance', 'street funk', 'jiu jitsu', 'jiujitsu', 'jiu-jitsu', 'heels', 'dancehall'];
+  
+  // Jazz e Jazz Funk tratados separadamente
+  const JAZZ_PURO = ['seg_qua']; // Jazz só aparece em Segunda e Quarta
+  const JAZZ_FUNK = ['ter_qui', 'sex_sab']; // Jazz Funk aparece em Terça/Quinta e Sexta/Sábado
 
   // Função para encontrar imagens relevantes para uma modalidade
   function getImagensParaModalidade(texto) {
     const imagens = [];
     
-    const temSegQua = MODALIDADES_SEG_QUA.some(mod => texto.includes(mod));
-    const temTerQui = MODALIDADES_TER_QUI.some(mod => texto.includes(mod));
-    const temSexSab = MODALIDADES_SEX_SAB.some(mod => texto.includes(mod));
+    // Verificar Jazz Funk primeiro (antes de Jazz puro)
+    const temJazzFunk = texto.includes('jazz funk') || texto.includes('jazzfunk');
+    const temJazzPuro = !temJazzFunk && texto.includes('jazz');
+    
+    let temSegQua = MODALIDADES_SEG_QUA.some(mod => texto.includes(mod));
+    let temTerQui = MODALIDADES_TER_QUI.some(mod => texto.includes(mod));
+    let temSexSab = MODALIDADES_SEX_SAB.some(mod => texto.includes(mod));
+    
+    // Jazz puro só em Segunda e Quarta
+    if (temJazzPuro) temSegQua = true;
+    
+    // Jazz Funk em Terça/Quinta e Sexta/Sábado
+    if (temJazzFunk) {
+      temTerQui = true;
+      temSexSab = true;
+    }
     
     if (temSegQua) imagens.push({ url: IMAGE_HORARIOS_SEG_QUA, caption: '📅 *Segunda e Quarta*' });
     if (temTerQui) imagens.push({ url: IMAGE_HORARIOS_TER_QUI, caption: '📅 *Terça e Quinta*' });
@@ -349,8 +366,8 @@ Quer agendar uma aula experimental gratuita? Digite *4*! 🎉`
     return imagens;
   }
 
-  // Verificar se perguntou sobre uma modalidade específica
-  const modalidadesRegex = /(street dance|street funk|ritmos|teatro|populares|contemporâneo|contemporaneo|fit dance|fitdance|acrobacia|jazz funk|jazzfunk|jazz|muay thai|baby class|baby|heels|dança de salão|danca de salao|salão|salao|k-pop|kpop|k pop|ballet|balé|jiu jitsu|jiujitsu|jiu-jitsu|dancehall)/;
+  // Verificar se perguntou sobre uma modalidade específica (jazz funk antes de jazz para match correto)
+  const modalidadesRegex = /(street dance|street funk|ritmos|teatro|populares|contemporâneo|contemporaneo|fit dance|fitdance|acrobacia|jazz funk|jazzfunk|muay thai|baby class|baby|heels|dança de salão|danca de salao|salão|salao|k-pop|kpop|k pop|ballet|balé|jiu jitsu|jiujitsu|jiu-jitsu|dancehall|jazz)/;
   const matchModalidade = msgLower.match(modalidadesRegex);
   
   if (matchModalidade) {
