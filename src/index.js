@@ -100,7 +100,12 @@ REGRAS DE RESPOSTA:
 `;
 
 async function askGemini(userMessage) {
-  if (!GEMINI_API_KEY) return null;
+  if (!GEMINI_API_KEY) {
+    console.log('⚠️ Gemini API Key não configurada');
+    return null;
+  }
+  
+  console.log('🤖 Consultando Gemini para:', userMessage);
   
   try {
     const response = await axios.post(
@@ -118,14 +123,15 @@ async function askGemini(userMessage) {
       },
       {
         headers: { 'Content-Type': 'application/json' },
-        timeout: 10000
+        timeout: 15000
       }
     );
     
     const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    console.log('✅ Gemini respondeu:', text ? 'OK' : 'Vazio');
     return text || null;
   } catch (error) {
-    console.error('❌ Erro ao consultar Gemini:', error.message);
+    console.error('❌ Erro ao consultar Gemini:', error.response?.data || error.message);
     return null;
   }
 }
