@@ -33,6 +33,102 @@ const IMAGE_HORARIOS_SEG_QUA = process.env.IMAGE_HORARIOS_SEG_QUA || 'https://fi
 const IMAGE_HORARIOS_TER_QUI = process.env.IMAGE_HORARIOS_TER_QUI || 'https://files.manuscdn.com/user_upload_by_module/session_file/310519663188334106/PCCVHpRiHdafUFBI.PNG';
 const IMAGE_HORARIOS_SEX_SAB = process.env.IMAGE_HORARIOS_SEX_SAB || 'https://files.manuscdn.com/user_upload_by_module/session_file/310519663188334106/MNVAZvMbWjIkLVQt.PNG';
 const ADMIN_PHONE = process.env.ADMIN_PHONE || '5547999110328';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+
+// ============================================
+// INTEGRAÇÃO COM GEMINI (IA)
+// ============================================
+
+const CONTEXTO_ESCOLA = `
+Você é o assistente virtual da Xpace Escola de Dança, localizada na Rua Tijucas, 401 - Centro, Joinville - SC.
+
+INFORMAÇÕES DA ESCOLA:
+
+PLANOS E PREÇOS:
+- Plano Anual: R$165/mês
+- Plano Semestral: R$195/mês
+- Plano Mensal: R$215/mês
+- Turmas 1x na semana: Anual R$100, Semestral R$115, Mensal R$130
+- Modalidade adicional: R$75/mês
+- Matrícula: R$80
+
+MODALIDADES E HORÁRIOS:
+
+SEGUNDA E QUARTA:
+- Street Dance (5+): 08:00, 14:30, 19:00
+- Street Dance (12+): 19:00
+- Street Dance (16+): 20:00
+- Ritmos (15+): 08:00
+- Teatro (12+): 09:00
+- Teatro (15+): 18:00
+- Populares (12+): 14:00
+- Contemporâneo (12+): 19:00
+- Fit Dance (15+): 19:00
+- Acrobacia (12+): 20:00
+- Jazz (18+): 20:00, 21:00
+- Muay Thai: 20:00
+
+TERÇA E QUINTA:
+- Street Dance (12+): 09:00, 14:30, 20:00
+- Baby Class (3+): 15:30
+- Jazz Funk (15+): 19:00 (só terça)
+- Heels (15+): 19:00 (só quinta)
+- Ritmos (15+): 19:00
+- Muay Thai (12+): 19:00, 20:00
+- Dança de Salão (18+): 20:00
+- K-Pop (12+): 20:00
+- Ballet (12+): 21:00
+
+SEXTA:
+- Street Dance (18+): 19:00
+- Street Funk (15+): 19:00
+- Jiu Jitsu (6+): 19:00
+
+SÁBADO:
+- Jazz Funk (15+): 09:00
+- Street Dance (18+): 10:00
+- Heels (15+): 11:00
+- Dancehall (15+): 14:30
+
+REGRAS DE RESPOSTA:
+1. Seja simpático e use emojis
+2. Respostas curtas e diretas (máximo 3 parágrafos)
+3. Sempre mencione que pode digitar 6 para falar com atendente
+4. Para agendar aula experimental, indique digitar 4
+5. Link com mais informações: ${LINK_ESCOLA}
+6. Se não souber responder, sugira falar com atendente (digitar 6)
+`;
+
+async function askGemini(userMessage) {
+  if (!GEMINI_API_KEY) return null;
+  
+  try {
+    const response = await axios.post(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        contents: [{
+          parts: [{
+            text: `${CONTEXTO_ESCOLA}\n\nPergunta do cliente: ${userMessage}\n\nResponda de forma útil e amigável:`
+          }]
+        }],
+        generationConfig: {
+          maxOutputTokens: 300,
+          temperature: 0.7
+        }
+      },
+      {
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 10000
+      }
+    );
+    
+    const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    return text || null;
+  } catch (error) {
+    console.error('❌ Erro ao consultar Gemini:', error.message);
+    return null;
+  }
+}
 
 // ============================================
 // FUNÇÕES DE BANCO DE DADOS
@@ -500,7 +596,18 @@ Se precisar de mais alguma coisa, é só chamar! 💃
     };
   }
 
-  // Resposta padrão
+  // Tentar responder com IA (Gemini)
+  if (GEMINI_API_KEY) {
+    const respostaIA = await askGemini(message);
+    if (respostaIA) {
+      return {
+        type: 'text',
+        content: respostaIA
+      };
+    }
+  }
+
+  // Resposta padrão (se IA não estiver configurada ou falhar)
   return {
     type: 'text',
     content: `Desculpe, não entendi sua mensagem. 😅
