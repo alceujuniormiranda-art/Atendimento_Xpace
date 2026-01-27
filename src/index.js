@@ -13,18 +13,20 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY
 );
 
-// Configurações
-const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL;
-const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY;
-const EVOLUTION_INSTANCE = process.env.EVOLUTION_INSTANCE || 'xpace';
+// Configurações Z-API
+const ZAPI_INSTANCE_ID = process.env.ZAPI_INSTANCE_ID;
+const ZAPI_TOKEN = process.env.ZAPI_TOKEN;
+const ZAPI_BASE_URL = `https://api.z-api.io/instances/${ZAPI_INSTANCE_ID}/token/${ZAPI_TOKEN}`;
+
+// Outras configurações
 const BOT_TIMEOUT_MINUTES = parseInt(process.env.BOT_TIMEOUT_MINUTES) || 30;
 const LINK_ESCOLA = process.env.LINK_ESCOLA || 'https://links.nextfit.bio/5e3eXmh';
+const IMAGE_PLANOS_URL = process.env.IMAGE_PLANOS_URL || '';
 
 // ============================================
 // FUNÇÕES DE BANCO DE DADOS
 // ============================================
 
-// Verificar se o bot está pausado para um número
 async function isBotPaused(phoneNumber) {
   const { data, error } = await supabase
     .from('conversations')
@@ -35,13 +37,11 @@ async function isBotPaused(phoneNumber) {
   if (error || !data) return false;
 
   if (data.bot_paused) {
-    // Verificar se passou o tempo de timeout
     const pausedAt = new Date(data.paused_at);
     const now = new Date();
     const diffMinutes = (now - pausedAt) / (1000 * 60);
 
     if (diffMinutes >= BOT_TIMEOUT_MINUTES) {
-      // Reativar bot automaticamente
       await resumeBot(phoneNumber);
       return false;
     }
@@ -50,7 +50,6 @@ async function isBotPaused(phoneNumber) {
   return false;
 }
 
-// Pausar o bot para um número
 async function pauseBot(phoneNumber) {
   const { error } = await supabase
     .from('conversations')
@@ -64,7 +63,6 @@ async function pauseBot(phoneNumber) {
   return !error;
 }
 
-// Retomar o bot para um número
 async function resumeBot(phoneNumber) {
   const { error } = await supabase
     .from('conversations')
@@ -78,7 +76,6 @@ async function resumeBot(phoneNumber) {
   return !error;
 }
 
-// Registrar mensagem no histórico
 async function logMessage(phoneNumber, message, isFromBot) {
   await supabase
     .from('message_logs')
@@ -90,7 +87,6 @@ async function logMessage(phoneNumber, message, isFromBot) {
     });
 }
 
-// Buscar resposta personalizada do banco
 async function getCustomResponse(keyword) {
   const { data, error } = await supabase
     .from('custom_responses')
@@ -104,55 +100,44 @@ async function getCustomResponse(keyword) {
 }
 
 // ============================================
-// FUNÇÕES DE ENVIO DE MENSAGENS
+// FUNÇÕES DE ENVIO - Z-API
 // ============================================
 
-// Enviar mensagem de texto
 async function sendTextMessage(phoneNumber, text) {
   try {
+    const phone = phoneNumber.replace(/\D/g, '');
     await axios.post(
-      `${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE}`,
+      `${ZAPI_BASE_URL}/send-text`,
       {
-        number: phoneNumber,
-        text: text
-      },
-      {
-        headers: {
-          'apikey': EVOLUTION_API_KEY,
-          'Content-Type': 'application/json'
-        }
+        phone: phone,
+        message: text
       }
     );
     await logMessage(phoneNumber, text, true);
+    console.log(`✅ Mensagem enviada para ${phone}`);
     return true;
   } catch (error) {
-    console.error('Erro ao enviar mensagem:', error.message);
+    console.error('❌ Erro ao enviar mensagem:', error.response?.data || error.message);
     return false;
   }
 }
 
-// Enviar imagem
 async function sendImage(phoneNumber, imageUrl, caption = '') {
   try {
+    const phone = phoneNumber.replace(/\D/g, '');
     await axios.post(
-      `${EVOLUTION_API_URL}/message/sendMedia/${EVOLUTION_INSTANCE}`,
+      `${ZAPI_BASE_URL}/send-image`,
       {
-        number: phoneNumber,
-        mediatype: 'image',
-        media: imageUrl,
+        phone: phone,
+        image: imageUrl,
         caption: caption
-      },
-      {
-        headers: {
-          'apikey': EVOLUTION_API_KEY,
-          'Content-Type': 'application/json'
-        }
       }
     );
     await logMessage(phoneNumber, `[IMAGEM] ${caption}`, true);
+    console.log(`✅ Imagem enviada para ${phone}`);
     return true;
   } catch (error) {
-    console.error('Erro ao enviar imagem:', error.message);
+    console.error('❌ Erro ao enviar imagem:', error.response?.data || error.message);
     return false;
   }
 }
@@ -161,7 +146,6 @@ async function sendImage(phoneNumber, imageUrl, caption = '') {
 // LÓGICA DO BOT - RESPOSTAS
 // ============================================
 
-// Mensagem de boas-vindas
 const WELCOME_MESSAGE = `Olá! 👋 Bem-vindo(a) à *Xpace Escola de Dança*! 💃🕺
 
 Sou o assistente virtual e estou aqui para te ajudar!
@@ -177,7 +161,6 @@ Como posso te ajudar hoje?
 
 Digite o número da opção ou escreva sua dúvida! 😊`;
 
-// Processar mensagem recebida
 async function processMessage(phoneNumber, message) {
   const msgLower = message.toLowerCase().trim();
 
@@ -219,10 +202,11 @@ async function processMessage(phoneNumber, message) {
 
   // Opção 1 ou perguntas sobre preço/planos
   if (msgLower === '1' || msgLower.match(/(preço|preco|valor|plano|quanto custa|mensalidade|pacote)/)) {
-    return {
-      type: 'image',
-      imageUrl: process.env.IMAGE_PLANOS_URL || '',
-      caption: `💰 *Confira nossos planos!*
+    if (IMAGE_PLANOS_URL) {
+      return {
+        type: 'image',
+        imageUrl: IMAGE_PLANOS_URL,
+        caption: `💰 *Confira nossos planos!*
 
 ✨ *Plano Anual:* R$165/mês
 ✨ *Plano Semestral:* R$195/mês  
@@ -236,7 +220,24 @@ async function processMessage(phoneNumber, message) {
 ➕ Modalidade adicional: R$75/mês
 📝 Matrícula: R$80
 
-Válido para todas as modalidades em 2026!
+Quer agendar uma aula experimental gratuita? Digite *4*! 🎉`
+      };
+    }
+    return {
+      type: 'text',
+      content: `💰 *Nossos Planos:*
+
+✨ *Plano Anual:* R$165/mês
+✨ *Plano Semestral:* R$195/mês  
+✨ *Plano Mensal:* R$215/mês
+
+📌 *Turmas 1x na semana:*
+• Anual: R$100/mês
+• Semestral: R$115/mês
+• Mensal: R$130/mês
+
+➕ Modalidade adicional: R$75/mês
+📝 Matrícula: R$80
 
 Quer agendar uma aula experimental gratuita? Digite *4*! 🎉`
     };
@@ -261,14 +262,6 @@ Quer experimentar? Digite *4* para agendar sua aula experimental! 🎉`
 
   // Opção 3 ou perguntas sobre horários
   if (msgLower === '3' || msgLower.match(/(horário|horario|hora|grade|agenda|quando|que horas)/)) {
-    const hasGradeImage = process.env.IMAGE_GRADE_URL;
-    if (hasGradeImage) {
-      return {
-        type: 'image',
-        imageUrl: process.env.IMAGE_GRADE_URL,
-        caption: '📅 *Grade de Horários - Xpace Escola de Dança*\n\nPara mais detalhes, acesse: ' + LINK_ESCOLA
-      };
-    }
     return {
       type: 'text',
       content: `📅 *Horários das Aulas*
@@ -347,7 +340,7 @@ Se precisar de mais alguma coisa, é só chamar! 💃
     };
   }
 
-  // Resposta padrão para mensagens não reconhecidas
+  // Resposta padrão
   return {
     type: 'text',
     content: `Desculpe, não entendi sua mensagem. 😅
@@ -366,28 +359,25 @@ Ou digite sua dúvida que tentarei ajudar! 😊`
 }
 
 // ============================================
-// WEBHOOK - RECEBER MENSAGENS
+// WEBHOOK - RECEBER MENSAGENS DO Z-API
 // ============================================
 
 app.post('/webhook', async (req, res) => {
   try {
     const data = req.body;
     
-    // Verificar se é uma mensagem recebida
-    if (data.event === 'messages.upsert' && data.data) {
-      const messageData = data.data;
-      
-      // Ignorar mensagens enviadas pelo próprio bot
-      if (messageData.key.fromMe) {
+    console.log('📩 Webhook recebido:', JSON.stringify(data, null, 2));
+
+    // Z-API envia diferentes tipos de eventos
+    // Mensagem de texto recebida
+    if (data.text && data.phone) {
+      const phoneNumber = data.phone;
+      const message = data.text.message || data.text;
+      const isFromMe = data.fromMe || false;
+
+      // Ignorar mensagens enviadas por mim
+      if (isFromMe) {
         return res.status(200).json({ status: 'ignored' });
-      }
-
-      const phoneNumber = messageData.key.remoteJid.replace('@s.whatsapp.net', '');
-      const message = messageData.message?.conversation || 
-                      messageData.message?.extendedTextMessage?.text || '';
-
-      if (!message) {
-        return res.status(200).json({ status: 'no message' });
       }
 
       console.log(`📩 Mensagem de ${phoneNumber}: ${message}`);
@@ -400,7 +390,6 @@ app.post('/webhook', async (req, res) => {
       if (paused) {
         console.log(`⏸️ Bot pausado para ${phoneNumber}`);
         
-        // Verificar se é comando /start para reativar
         if (message.toLowerCase().trim() === '/start' || message.toLowerCase().trim() === 'start') {
           await resumeBot(phoneNumber);
           await sendTextMessage(phoneNumber, '▶️ Bot reativado! Como posso te ajudar?\n\n' + WELCOME_MESSAGE);
@@ -422,7 +411,7 @@ app.post('/webhook', async (req, res) => {
 
     res.status(200).json({ status: 'ok' });
   } catch (error) {
-    console.error('Erro no webhook:', error);
+    console.error('❌ Erro no webhook:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -431,30 +420,27 @@ app.post('/webhook', async (req, res) => {
 // ROTAS ADMINISTRATIVAS
 // ============================================
 
-// Health check
 app.get('/', (req, res) => {
   res.json({ 
     status: 'online',
     bot: 'Xpace Escola de Dança',
-    version: '1.0.0'
+    api: 'Z-API',
+    version: '2.0.0'
   });
 });
 
-// Pausar bot manualmente (para uso do admin)
 app.post('/admin/pause/:phone', async (req, res) => {
   const phone = req.params.phone;
   await pauseBot(phone);
   res.json({ status: 'paused', phone });
 });
 
-// Retomar bot manualmente
 app.post('/admin/resume/:phone', async (req, res) => {
   const phone = req.params.phone;
   await resumeBot(phone);
   res.json({ status: 'resumed', phone });
 });
 
-// Listar conversas pausadas
 app.get('/admin/paused', async (req, res) => {
   const { data } = await supabase
     .from('conversations')
@@ -471,5 +457,6 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Bot Xpace rodando na porta ${PORT}`);
   console.log(`📱 Webhook disponível em: /webhook`);
+  console.log(`🔗 Z-API Instance: ${ZAPI_INSTANCE_ID}`);
   console.log(`⏱️ Timeout do bot: ${BOT_TIMEOUT_MINUTES} minutos`);
 });
