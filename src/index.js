@@ -29,25 +29,7 @@ const ZAPI_HEADERS = {
 const BOT_TIMEOUT_MINUTES = parseInt(process.env.BOT_TIMEOUT_MINUTES) || 30;
 const LINK_ESCOLA = process.env.LINK_ESCOLA || 'https://links.nextfit.bio/5e3eXmh';
 const IMAGE_PLANOS_URL = process.env.IMAGE_PLANOS_URL || '';
-const MAKE_WEBHOOK_URL = process.env.MAKE_WEBHOOK_URL || '';
-
-// ============================================
-// FUNÇÃO PARA REPASSAR PARA O MAKE
-// ============================================
-
-async function forwardToMake(data) {
-  if (!MAKE_WEBHOOK_URL) return;
-  
-  try {
-    await axios.post(MAKE_WEBHOOK_URL, data, {
-      headers: { 'Content-Type': 'application/json' },
-      timeout: 5000
-    });
-    console.log('📤 Mensagem repassada para o Make');
-  } catch (error) {
-    console.error('⚠️ Erro ao repassar para Make (não crítico):', error.message);
-  }
-}
+// MAKE_WEBHOOK_URL removido - bot funciona independente
 
 // ============================================
 // FUNÇÕES DE BANCO DE DADOS
@@ -395,9 +377,6 @@ app.post('/webhook', async (req, res) => {
     const data = req.body;
     
     console.log('📩 Webhook recebido:', JSON.stringify(data, null, 2));
-
-    // Repassar para o Make (em paralelo, não bloqueia)
-    forwardToMake(data);
 
     // Z-API envia diferentes tipos de eventos
     // Mensagem de texto recebida
