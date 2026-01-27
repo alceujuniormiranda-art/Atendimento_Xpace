@@ -400,11 +400,14 @@ app.post('/webhook', async (req, res) => {
       if (paused) {
         console.log(`⏸️ Bot pausado para ${phoneNumber}`);
         
+        // Verificar se é comando para reativar
         if (message.toLowerCase().trim() === '/start' || message.toLowerCase().trim() === 'start') {
           await resumeBot(phoneNumber);
           await sendTextMessage(phoneNumber, '▶️ Bot reativado! Como posso te ajudar?\n\n' + WELCOME_MESSAGE);
+          return res.status(200).json({ status: 'resumed' });
         }
         
+        // Bot pausado, não responde
         return res.status(200).json({ status: 'paused' });
       }
 
