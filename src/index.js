@@ -189,15 +189,34 @@ async function resumeBot(phoneNumber) {
   return !error;
 }
 
-async function logMessage(phoneNumber, message, isFromBot) {
+async function logMessage(phoneNumber, message, isFromBot, isFromAdmin = false) {
   await supabase
     .from('message_logs')
     .insert({
       phone_number: phoneNumber,
       message: message,
       is_from_bot: isFromBot,
+      is_from_admin: isFromAdmin,
       created_at: new Date().toISOString()
     });
+}
+
+// Verificar se o admin está atendendo (mandou mensagem nos últimos 30 minutos)
+async function isAdminAttending(phoneNumber) {
+  const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+  
+  const { data, error } = await supabase
+    .from('message_logs')
+    .select('is_from_admin, created_at')
+    .eq('phone_number', phoneNumber)
+    .gte('created_at', thirtyMinutesAgo)
+    .order('created_at', { ascending: false })
+    .limit(1);
+
+  if (error || !data || data.length === 0) return false;
+  
+  // Se a última mensagem foi do admin, ele está atendendo
+  return data[0].is_from_admin === true;
 }
 
 async function getCustomResponse(keyword) {
@@ -648,9 +667,12 @@ app.post('/webhook', async (req, res) => {
       const message = data.text.message || data.text;
       const isFromMe = data.fromMe || false;
 
-      // Ignorar mensagens enviadas por mim
+      // Se a mensagem foi enviada por mim (admin), registrar e não responder
       if (isFromMe) {
-        return res.status(200).json({ status: 'ignored' });
+        // Registrar que o admin está atendendo esse contato
+        await logMessage(phoneNumber, message, false, true);
+        console.log(`👤 Admin enviou mensagem para ${phoneNumber} - bot pausado automaticamente`);
+        return res.status(200).json({ status: 'admin_attending' });
       }
 
       console.log(`📩 Mensagem de ${phoneNumber}: ${message}`);
@@ -673,6 +695,14 @@ app.post('/webhook', async (req, res) => {
       if (paused) {
         console.log(`⏸️ Bot pausado para ${phoneNumber}, ignorando mensagem`);
         return res.status(200).json({ status: 'paused' });
+      }
+
+      // Verificar se o admin está atendendo (mandou mensagem recentemente)
+      const adminAttending = await isAdminAttending(phoneNumber);
+      if (adminAttending) {
+        console.log(`👤 Admin está atendendo ${phoneNumber}, bot não responde`);
+        // Registrar mensagem do cliente mesmo assim
+        return res.status(200).json({ status: 'admin_attending' });
       }
 
       // Processar mensagem e obter resposta
