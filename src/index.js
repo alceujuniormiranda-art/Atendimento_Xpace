@@ -237,7 +237,9 @@ Como posso te ajudar hoje?
 5️⃣ Saber nossa *localização*
 6️⃣ Falar com um *atendente*
 
-Digite o número da opção ou escreva sua dúvida! 😊`;
+Digite o número da opção ou escreva sua dúvida! 😊
+
+_A qualquer momento, digite *6* para falar com um atendente humano!_`;
 
 async function processMessage(phoneNumber, message) {
   const msgLower = message.toLowerCase().trim();
