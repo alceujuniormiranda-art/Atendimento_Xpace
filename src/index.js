@@ -27,6 +27,10 @@ const ZAPI_HEADERS = {
 
 // Outras configurações
 const BOT_TIMEOUT_MINUTES = parseInt(process.env.BOT_TIMEOUT_MINUTES) || 30;
+const MESSAGE_GROUP_DELAY = 5000; // 5 segundos para agrupar mensagens
+
+// Sistema de agrupamento de mensagens
+const pendingMessages = new Map(); // phoneNumber -> { messages: [], timer: null }
 const LINK_ESCOLA = process.env.LINK_ESCOLA || 'https://links.nextfit.bio/5e3eXmh';
 const IMAGE_PLANOS_URL = process.env.IMAGE_PLANOS_URL || 'https://files.manuscdn.com/user_upload_by_module/session_file/310519663188334106/JIyArqOviydhbQnG.jpeg';
 const IMAGE_HORARIOS_SEG_QUA = process.env.IMAGE_HORARIOS_SEG_QUA || 'https://files.manuscdn.com/user_upload_by_module/session_file/310519663188334106/DEJsiUKIQIcQnDHg.PNG';
@@ -651,6 +655,46 @@ Ou digite sua dúvida que tentarei ajudar! 😊`
 }
 
 // ============================================
+// FUNÇÃO PARA PROCESSAR MENSAGENS AGRUPADAS
+// ============================================
+
+async function processGroupedMessages(phoneNumber) {
+  try {
+    const pending = pendingMessages.get(phoneNumber);
+    if (!pending || pending.messages.length === 0) return;
+
+    // Juntar todas as mensagens em uma só
+    const combinedMessage = pending.messages.join(' ');
+    console.log(`📨 Processando ${pending.messages.length} mensagem(ns) agrupada(s) de ${phoneNumber}: "${combinedMessage}"`);
+
+    // Limpar mensagens pendentes
+    pendingMessages.delete(phoneNumber);
+
+    // Processar mensagem combinada e obter resposta
+    const response = await processMessage(phoneNumber, combinedMessage);
+
+    // Enviar resposta
+    if (response.type === 'image' && response.imageUrl) {
+      await sendImage(phoneNumber, response.imageUrl, response.caption);
+    } else if (response.type === 'multiple_images' && response.images) {
+      // Enviar múltiplas imagens em sequência
+      for (const img of response.images) {
+        await sendImage(phoneNumber, img.url, img.caption);
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      if (response.content) {
+        await sendTextMessage(phoneNumber, response.content);
+      }
+    } else {
+      await sendTextMessage(phoneNumber, response.content);
+    }
+  } catch (error) {
+    console.error(`❌ Erro ao processar mensagens agrupadas de ${phoneNumber}:`, error);
+    pendingMessages.delete(phoneNumber);
+  }
+}
+
+// ============================================
 // WEBHOOK - RECEBER MENSAGENS DO Z-API
 // ============================================
 
@@ -694,6 +738,11 @@ app.post('/webhook', async (req, res) => {
       const msgTrimmed = message.toLowerCase().trim();
       if (msgTrimmed === '/start' || msgTrimmed === 'start' || msgTrimmed === 'iniciar' || msgTrimmed === 'voltar') {
         console.log(`▶️ Comando de reativação recebido de ${phoneNumber}`);
+        // Cancelar mensagens pendentes se houver
+        if (pendingMessages.has(phoneNumber)) {
+          clearTimeout(pendingMessages.get(phoneNumber).timer);
+          pendingMessages.delete(phoneNumber);
+        }
         await resumeBot(phoneNumber);
         await sendTextMessage(phoneNumber, '▶️ Bot reativado! Como posso te ajudar?\n\n' + WELCOME_MESSAGE);
         return res.status(200).json({ status: 'resumed' });
@@ -708,29 +757,24 @@ app.post('/webhook', async (req, res) => {
       const adminAttending = await isAdminAttending(phoneNumber);
       if (adminAttending) {
         console.log(`👤 Admin está atendendo ${phoneNumber}, bot não responde`);
-        // Registrar mensagem do cliente mesmo assim
         return res.status(200).json({ status: 'admin_attending' });
       }
 
-      // Processar mensagem e obter resposta
-      const response = await processMessage(phoneNumber, message);
-
-      // Enviar resposta
-      if (response.type === 'image' && response.imageUrl) {
-        await sendImage(phoneNumber, response.imageUrl, response.caption);
-      } else if (response.type === 'multiple_images' && response.images) {
-        // Enviar múltiplas imagens em sequência
-        for (const img of response.images) {
-          await sendImage(phoneNumber, img.url, img.caption);
-          // Pequeno delay entre imagens para não sobrecarregar
-          await new Promise(resolve => setTimeout(resolve, 500));
-        }
-        // Enviar mensagem de texto final
-        if (response.content) {
-          await sendTextMessage(phoneNumber, response.content);
-        }
+      // Sistema de agrupamento de mensagens
+      // Se já existe mensagens pendentes para esse número, adiciona e reinicia timer
+      if (pendingMessages.has(phoneNumber)) {
+        const pending = pendingMessages.get(phoneNumber);
+        pending.messages.push(message);
+        clearTimeout(pending.timer);
+        pending.timer = setTimeout(() => processGroupedMessages(phoneNumber), MESSAGE_GROUP_DELAY);
+        console.log(`⏳ Mensagem agrupada para ${phoneNumber} (total: ${pending.messages.length})`);
       } else {
-        await sendTextMessage(phoneNumber, response.content);
+        // Primeira mensagem - inicia o agrupamento
+        pendingMessages.set(phoneNumber, {
+          messages: [message],
+          timer: setTimeout(() => processGroupedMessages(phoneNumber), MESSAGE_GROUP_DELAY)
+        });
+        console.log(`⏳ Aguardando mais mensagens de ${phoneNumber} (5s)...`);
       }
     }
 
