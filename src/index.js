@@ -666,6 +666,13 @@ app.post('/webhook', async (req, res) => {
       const phoneNumber = data.phone;
       const message = data.text.message || data.text;
       const isFromMe = data.fromMe || false;
+      const isFromApi = data.fromApi || false;
+
+      // Ignorar mensagens enviadas pela API (respostas do próprio bot)
+      if (isFromApi) {
+        console.log(`🤖 Mensagem do bot (fromApi), ignorando`);
+        return res.status(200).json({ status: 'ignored_bot_message' });
+      }
 
       // Se a mensagem foi enviada por mim (admin), registrar e não responder
       if (isFromMe) {
