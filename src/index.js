@@ -681,6 +681,15 @@ async function processGroupedMessages(phoneNumber) {
     // Limpar mensagens pendentes
     pendingMessages.delete(phoneNumber);
 
+    // VERIFICAR SE ADMIN ESTÁ ATENDENDO ANTES DE PROCESSAR
+    const adminAttending = await isAdminAttending(phoneNumber);
+    if (adminAttending) {
+      console.log(`🛑 Admin está atendendo ${phoneNumber} - bot não responde`);
+      // Registrar a mensagem do cliente mas não responder
+      await logMessage(phoneNumber, combinedMessage, false, false);
+      return;
+    }
+
     // Processar mensagem combinada e obter resposta
     const response = await processMessage(phoneNumber, combinedMessage);
 
