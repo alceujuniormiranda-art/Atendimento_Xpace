@@ -224,15 +224,26 @@ async function isAdminAttending(phoneNumber) {
 }
 
 async function getCustomResponse(keyword) {
+  // Busca na tabela respostas_personalizadas
+  // Tenta encontrar a palavra-chave na mensagem
   const { data, error } = await supabase
-    .from('custom_responses')
-    .select('response, image_url')
-    .eq('keyword', keyword.toLowerCase())
-    .eq('active', true)
-    .single();
+    .from('respostas_personalizadas')
+    .select('resposta, url_da_imagem, palavra_chave')
+    .eq('ativo', true);
 
-  if (error || !data) return null;
-  return data;
+  if (error || !data || data.length === 0) return null;
+  
+  // Procurar se alguma palavra-chave está contida na mensagem
+  const keywordLower = keyword.toLowerCase();
+  for (const item of data) {
+    if (item.palavra_chave && keywordLower.includes(item.palavra_chave.toLowerCase())) {
+      return {
+        response: item.resposta,
+        image_url: item.url_da_imagem
+      };
+    }
+  }
+  return null;
 }
 
 async function getConversationSummary(phoneNumber) {
