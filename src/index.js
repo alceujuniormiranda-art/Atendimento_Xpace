@@ -209,18 +209,21 @@ async function logMessage(phoneNumber, message, isFromBot, isFromAdmin = false) 
 async function isAdminAttending(phoneNumber) {
   const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
   
+  // Buscar a última mensagem do ADMIN para esse número nos últimos 30 minutos
   const { data, error } = await supabase
     .from('message_logs')
     .select('is_from_admin, created_at')
     .eq('phone_number', phoneNumber)
+    .eq('is_from_admin', true)  // Buscar APENAS mensagens do admin
     .gte('created_at', thirtyMinutesAgo)
     .order('created_at', { ascending: false })
     .limit(1);
 
   if (error || !data || data.length === 0) return false;
   
-  // Se a última mensagem foi do admin, ele está atendendo
-  return data[0].is_from_admin === true;
+  // Se existe mensagem do admin nos últimos 30 minutos, ele está atendendo
+  console.log(`🔍 Admin atendeu ${phoneNumber} às ${data[0].created_at}`);
+  return true;
 }
 
 async function getCustomResponse(message) {
