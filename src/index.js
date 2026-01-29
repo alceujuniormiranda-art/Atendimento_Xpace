@@ -223,23 +223,23 @@ async function isAdminAttending(phoneNumber) {
   return data[0].is_from_admin === true;
 }
 
-async function getCustomResponse(keyword) {
-  // Busca na tabela respostas_personalizadas
-  // Tenta encontrar a palavra-chave na mensagem
+async function getCustomResponse(message) {
+  // Busca na tabela custom_responses
+  // Busca todas as palavras-chave ativas
   const { data, error } = await supabase
-    .from('respostas_personalizadas')
-    .select('resposta, url_da_imagem, palavra_chave')
-    .eq('ativo', true);
+    .from('custom_responses')
+    .select('keyword, response, image_url')
+    .eq('active', true);
 
   if (error || !data || data.length === 0) return null;
   
   // Procurar se alguma palavra-chave está contida na mensagem
-  const keywordLower = keyword.toLowerCase();
+  const messageLower = message.toLowerCase();
   for (const item of data) {
-    if (item.palavra_chave && keywordLower.includes(item.palavra_chave.toLowerCase())) {
+    if (item.keyword && messageLower.includes(item.keyword.toLowerCase())) {
       return {
-        response: item.resposta,
-        image_url: item.url_da_imagem
+        response: item.response,
+        image_url: item.image_url
       };
     }
   }
