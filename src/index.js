@@ -205,23 +205,23 @@ async function logMessage(phoneNumber, message, isFromBot, isFromAdmin = false) 
     });
 }
 
-// Verificar se o admin está atendendo (mandou mensagem nos últimos 30 minutos)
+// Verificar se o admin está atendendo (mandou mensagem nos últimos 5 horas)
 async function isAdminAttending(phoneNumber) {
-  const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+  const fiveHoursAgo = new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString();
   
-  // Buscar a última mensagem do ADMIN para esse número nos últimos 30 minutos
+  // Buscar a última mensagem do ADMIN para esse número nos últimos 5 horas
   const { data, error } = await supabase
     .from('message_logs')
     .select('is_from_admin, created_at')
     .eq('phone_number', phoneNumber)
     .eq('is_from_admin', true)  // Buscar APENAS mensagens do admin
-    .gte('created_at', thirtyMinutesAgo)
+    .gte('created_at', fiveHoursAgo)
     .order('created_at', { ascending: false })
     .limit(1);
 
   if (error || !data || data.length === 0) return false;
   
-  // Se existe mensagem do admin nos últimos 30 minutos, ele está atendendo
+  // Se existe mensagem do admin nos últimos 5 horas, ele está atendendo
   console.log(`🔍 Admin atendeu ${phoneNumber} às ${data[0].created_at}`);
   return true;
 }
