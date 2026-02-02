@@ -759,6 +759,24 @@ app.post('/webhook', async (req, res) => {
       
       // Verificar se é comando para reativar (verificar ANTES de checar pausa)
       const msgTrimmed = message.toLowerCase().trim();
+      
+      // Comando /stop - processar ANTES do agrupamento
+      if (msgTrimmed === '/stop' || msgTrimmed === 'stop') {
+        console.log(`⏸️ Comando /stop recebido de ${phoneNumber}`);
+        // Cancelar mensagens pendentes se houver
+        if (pendingMessages.has(phoneNumber)) {
+          clearTimeout(pendingMessages.get(phoneNumber).timer);
+          pendingMessages.delete(phoneNumber);
+        }
+        await pauseBot(phoneNumber);
+        // Notificar admin sobre novo atendimento
+        notifyAdmin(phoneNumber, null).catch(err => {
+          console.error('Erro ao notificar admin:', err.message);
+        });
+        await sendTextMessage(phoneNumber, '⏸️ Bot pausado! Um atendente humano irá te atender em breve.\n\nDigite /start para voltar ao atendimento automático.');
+        return res.status(200).json({ status: 'paused' });
+      }
+      
       if (msgTrimmed === '/start' || msgTrimmed === 'start' || msgTrimmed === 'iniciar' || msgTrimmed === 'voltar') {
         console.log(`▶️ Comando de reativação recebido de ${phoneNumber}`);
         // Cancelar mensagens pendentes se houver
