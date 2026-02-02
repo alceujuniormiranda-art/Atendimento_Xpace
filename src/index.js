@@ -31,6 +31,9 @@ const MESSAGE_GROUP_DELAY = 5000; // 5 segundos para agrupar mensagens
 
 // Sistema de agrupamento de mensagens
 const pendingMessages = new Map(); // phoneNumber -> { messages: [], timer: null }
+
+// Cache de mapeamento LID -> telefone (em memória para performance)
+const lidToPhoneCache = new Map();
 const LINK_ESCOLA = process.env.LINK_ESCOLA || 'https://links.nextfit.bio/5e3eXmh';
 const IMAGE_PLANOS_URL = process.env.IMAGE_PLANOS_URL || 'https://files.manuscdn.com/user_upload_by_module/session_file/310519663188334106/JIyArqOviydhbQnG.jpeg';
 const IMAGE_HORARIOS_SEG_QUA = process.env.IMAGE_HORARIOS_SEG_QUA || 'https://files.manuscdn.com/user_upload_by_module/session_file/310519663188334106/DEJsiUKIQIcQnDHg.PNG';
@@ -191,6 +194,63 @@ async function resumeBot(phoneNumber) {
     }, { onConflict: 'phone_number' });
 
   return !error;
+}
+
+// Funções para mapeamento LID -> telefone
+async function saveLidMapping(chatLid, phoneNumber) {
+  if (!chatLid || !phoneNumber) return;
+  
+  // Extrair apenas o ID do LID (remover @lid ou @tampa)
+  const lidId = chatLid.replace(/@.*$/, '');
+  
+  // Salvar no cache em memória
+  lidToPhoneCache.set(lidId, phoneNumber);
+  
+  // Salvar no banco para persistência
+  await supabase
+    .from('lid_mapping')
+    .upsert({
+      lid_id: lidId,
+      phone_number: phoneNumber,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'lid_id' })
+    .catch(err => {
+      // Tabela pode não existir ainda, apenas logar
+      console.log(`⚠️ Erro ao salvar LID mapping (tabela pode não existir): ${err.message}`);
+    });
+  
+  console.log(`📍 Mapeamento salvo: ${lidId} -> ${phoneNumber}`);
+}
+
+async function getPhoneFromLid(lidPhone) {
+  if (!lidPhone) return null;
+  
+  // Extrair apenas o ID do LID
+  const lidId = lidPhone.replace(/@.*$/, '');
+  
+  // Verificar cache primeiro
+  if (lidToPhoneCache.has(lidId)) {
+    const phone = lidToPhoneCache.get(lidId);
+    console.log(`📍 LID encontrado no cache: ${lidId} -> ${phone}`);
+    return phone;
+  }
+  
+  // Buscar no banco
+  const { data, error } = await supabase
+    .from('lid_mapping')
+    .select('phone_number')
+    .eq('lid_id', lidId)
+    .single();
+  
+  if (!error && data) {
+    // Atualizar cache
+    lidToPhoneCache.set(lidId, data.phone_number);
+    console.log(`📍 LID encontrado no banco: ${lidId} -> ${data.phone_number}`);
+    return data.phone_number;
+  }
+  
+  console.log(`⚠️ LID não encontrado: ${lidId}`);
+  return null;
 }
 
 async function logMessage(phoneNumber, message, isFromBot, isFromAdmin = false) {
@@ -730,10 +790,11 @@ app.post('/webhook', async (req, res) => {
     // Z-API envia diferentes tipos de eventos
     // Mensagem de texto recebida
     if (data.text && data.phone) {
-      const phoneNumber = data.phone;
+      let phoneNumber = data.phone;
       const message = data.text.message || data.text;
       const isFromMe = data.fromMe || false;
       const isFromApi = data.fromApi || false;
+      const chatLid = data.chatLid || null;
 
       // Ignorar mensagens enviadas pela API (respostas do próprio bot)
       if (isFromApi) {
@@ -741,12 +802,33 @@ app.post('/webhook', async (req, res) => {
         return res.status(200).json({ status: 'ignored_bot_message' });
       }
 
-      // Se a mensagem foi enviada por mim (admin), registrar e não responder
+      // Se a mensagem foi enviada por mim (admin), resolver o número real
       if (isFromMe) {
+        // Verificar se o phone veio como @lid (ID interno do WhatsApp)
+        if (phoneNumber.includes('@lid') || phoneNumber.includes('@')) {
+          console.log(`🔍 Phone veio como LID: ${phoneNumber}, tentando resolver...`);
+          
+          // Tentar resolver pelo chatLid
+          const realPhone = await getPhoneFromLid(chatLid || phoneNumber);
+          
+          if (realPhone) {
+            phoneNumber = realPhone;
+            console.log(`✅ Número real encontrado: ${phoneNumber}`);
+          } else {
+            console.log(`⚠️ Não foi possível resolver LID para número real`);
+            // Mesmo sem resolver, registrar para não perder a informação
+          }
+        }
+        
         // Registrar que o admin está atendendo esse contato
         await logMessage(phoneNumber, message, false, true);
         console.log(`👤 Admin enviou mensagem para ${phoneNumber} - bot pausado automaticamente`);
         return res.status(200).json({ status: 'admin_attending' });
+      }
+
+      // Mensagem do cliente - salvar mapeamento LID -> telefone
+      if (chatLid && !phoneNumber.includes('@')) {
+        await saveLidMapping(chatLid, phoneNumber);
       }
 
       console.log(`📩 Mensagem de ${phoneNumber}: ${message}`);
