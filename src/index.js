@@ -207,17 +207,22 @@ async function saveLidMapping(chatLid, phoneNumber) {
   lidToPhoneCache.set(lidId, phoneNumber);
   
   // Salvar no banco para persistência
-  await supabase
-    .from('lid_mapping')
-    .upsert({
-      lid_id: lidId,
-      phone_number: phoneNumber,
-      updated_at: new Date().toISOString()
-    }, { onConflict: 'lid_id' })
-    .catch(err => {
-      // Tabela pode não existir ainda, apenas logar
-      console.log(`⚠️ Erro ao salvar LID mapping (tabela pode não existir): ${err.message}`);
-    });
+  try {
+    const { error } = await supabase
+      .from('lid_mapping')
+      .upsert({
+        lid_id: lidId,
+        phone_number: phoneNumber,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'lid_id' });
+    
+    if (error) {
+      console.log(`⚠️ Erro ao salvar LID mapping: ${error.message}`);
+    }
+  } catch (err) {
+    // Tabela pode não existir ainda, apenas logar
+    console.log(`⚠️ Erro ao salvar LID mapping (tabela pode não existir): ${err.message}`);
+  }
   
   console.log(`📍 Mapeamento salvo: ${lidId} -> ${phoneNumber}`);
 }
