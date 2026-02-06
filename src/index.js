@@ -147,51 +147,105 @@ async function askGemini(userMessage) {
 // FUNÇÕES DE BANCO DE DADOS
 // ============================================
 
+// Verifica se o bot está pausado para um número (verifica também pelo LID)
 async function isBotPaused(phoneNumber) {
+  // Lista de números para verificar
+  const numbersToCheck = [phoneNumber];
+  
+  // Buscar LID correspondente ao número (se existir)
+  const lidId = await getLidFromPhone(phoneNumber);
+  if (lidId) {
+    numbersToCheck.push(lidId);
+    numbersToCheck.push(`${lidId}@lid`);
+  }
+  
+  // Verificar se algum dos números está pausado
   const { data, error } = await supabase
     .from('conversations')
-    .select('bot_paused, paused_at')
-    .eq('phone_number', phoneNumber)
-    .single();
+    .select('bot_paused, paused_at, phone_number')
+    .in('phone_number', numbersToCheck)
+    .eq('bot_paused', true);
 
-  if (error || !data) return false;
+  if (error || !data || data.length === 0) return false;
 
-  if (data.bot_paused) {
-    const pausedAt = new Date(data.paused_at);
-    const now = new Date();
-    const diffMinutes = (now - pausedAt) / (1000 * 60);
+  // Verificar se a pausa ainda é válida (não expirou)
+  for (const record of data) {
+    if (record.bot_paused) {
+      const pausedAt = new Date(record.paused_at);
+      const now = new Date();
+      const diffMinutes = (now - pausedAt) / (1000 * 60);
 
-    if (diffMinutes >= BOT_TIMEOUT_MINUTES) {
-      await resumeBot(phoneNumber);
-      return false;
+      if (diffMinutes >= BOT_TIMEOUT_MINUTES) {
+        // Pausa expirou, reativar
+        await resumeBot(record.phone_number);
+        continue;
+      }
+      
+      console.log(`⏸️ Bot pausado para ${phoneNumber} (encontrado em ${record.phone_number})`);
+      return true;
     }
-    return true;
   }
   return false;
 }
 
+// Pausa o bot para um número (pausa também o LID correspondente se existir)
 async function pauseBot(phoneNumber) {
+  const now = new Date().toISOString();
+  
+  // Pausar o número principal
   const { error } = await supabase
     .from('conversations')
     .upsert({
       phone_number: phoneNumber,
       bot_paused: true,
-      paused_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      paused_at: now,
+      updated_at: now
     }, { onConflict: 'phone_number' });
+
+  // Também pausar o LID correspondente se existir
+  const lidId = await getLidFromPhone(phoneNumber);
+  if (lidId) {
+    await supabase
+      .from('conversations')
+      .upsert({
+        phone_number: lidId,
+        bot_paused: true,
+        paused_at: now,
+        updated_at: now
+      }, { onConflict: 'phone_number' });
+    console.log(`⏸️ Bot pausado também para LID: ${lidId}`);
+  }
 
   return !error;
 }
 
+// Reativa o bot para um número (reativa também o LID correspondente se existir)
 async function resumeBot(phoneNumber) {
+  const now = new Date().toISOString();
+  
+  // Reativar o número principal
   const { error } = await supabase
     .from('conversations')
     .upsert({
       phone_number: phoneNumber,
       bot_paused: false,
       paused_at: null,
-      updated_at: new Date().toISOString()
+      updated_at: now
     }, { onConflict: 'phone_number' });
+
+  // Também reativar o LID correspondente se existir
+  const lidId = await getLidFromPhone(phoneNumber);
+  if (lidId) {
+    await supabase
+      .from('conversations')
+      .upsert({
+        phone_number: lidId,
+        bot_paused: false,
+        paused_at: null,
+        updated_at: now
+      }, { onConflict: 'phone_number' });
+    console.log(`▶️ Bot reativado também para LID: ${lidId}`);
+  }
 
   return !error;
 }
@@ -258,6 +312,35 @@ async function getPhoneFromLid(lidPhone) {
   return null;
 }
 
+// Buscar LID a partir do número real (inverso)
+async function getLidFromPhone(phoneNumber) {
+  if (!phoneNumber) return null;
+  
+  // Verificar cache (busca reversa)
+  for (const [lid, phone] of lidToPhoneCache.entries()) {
+    if (phone === phoneNumber) {
+      console.log(`📍 LID encontrado no cache (reverso): ${phoneNumber} -> ${lid}`);
+      return lid;
+    }
+  }
+  
+  // Buscar no banco
+  const { data, error } = await supabase
+    .from('lid_mapping')
+    .select('lid_id')
+    .eq('phone_number', phoneNumber)
+    .single();
+  
+  if (!error && data) {
+    // Atualizar cache
+    lidToPhoneCache.set(data.lid_id, phoneNumber);
+    console.log(`📍 LID encontrado no banco (reverso): ${phoneNumber} -> ${data.lid_id}`);
+    return data.lid_id;
+  }
+  
+  return null;
+}
+
 async function logMessage(phoneNumber, message, isFromBot, isFromAdmin = false) {
   await supabase
     .from('message_logs')
@@ -271,14 +354,25 @@ async function logMessage(phoneNumber, message, isFromBot, isFromAdmin = false) 
 }
 
 // Verificar se o admin está atendendo (mandou mensagem nos últimos 5 horas)
+// Verifica tanto pelo número real quanto pelo LID correspondente
 async function isAdminAttending(phoneNumber) {
   const fiveHoursAgo = new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString();
   
-  // Buscar a última mensagem do ADMIN para esse número nos últimos 5 horas
+  // Lista de números para verificar (número real + LID se existir)
+  const numbersToCheck = [phoneNumber];
+  
+  // Buscar LID correspondente ao número
+  const lidId = await getLidFromPhone(phoneNumber);
+  if (lidId) {
+    numbersToCheck.push(lidId);
+    numbersToCheck.push(`${lidId}@lid`);
+  }
+  
+  // Buscar a última mensagem do ADMIN para esse número ou LID nos últimos 5 horas
   const { data, error } = await supabase
     .from('message_logs')
-    .select('is_from_admin, created_at')
-    .eq('phone_number', phoneNumber)
+    .select('is_from_admin, created_at, phone_number')
+    .in('phone_number', numbersToCheck)
     .eq('is_from_admin', true)  // Buscar APENAS mensagens do admin
     .gte('created_at', fiveHoursAgo)
     .order('created_at', { ascending: false })
@@ -287,7 +381,7 @@ async function isAdminAttending(phoneNumber) {
   if (error || !data || data.length === 0) return false;
   
   // Se existe mensagem do admin nos últimos 5 horas, ele está atendendo
-  console.log(`🔍 Admin atendeu ${phoneNumber} às ${data[0].created_at}`);
+  console.log(`🔍 Admin atendeu ${phoneNumber} (encontrado em ${data[0].phone_number}) às ${data[0].created_at}`);
   return true;
 }
 
