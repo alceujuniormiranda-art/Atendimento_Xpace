@@ -26,7 +26,7 @@ const ZAPI_HEADERS = {
 };
 
 // Outras configurações
-const BOT_TIMEOUT_MINUTES = parseInt(process.env.BOT_TIMEOUT_MINUTES) || 30;
+const BOT_TIMEOUT_MINUTES = parseInt(process.env.BOT_TIMEOUT_MINUTES) || 720; // 12 horas padrão
 const MESSAGE_GROUP_DELAY = 5000; // 5 segundos para agrupar mensagens
 
 // Sistema de agrupamento de mensagens
@@ -99,12 +99,13 @@ SÁBADO:
 - Dancehall (15+): 14:30
 
 REGRAS DE RESPOSTA:
-1. Seja simpático e use emojis
-2. Respostas curtas e diretas (máximo 3 parágrafos)
-3. Sempre mencione que pode digitar 6 para falar com atendente
-4. Para agendar aula experimental, indique digitar 4
-5. Link com mais informações: ${LINK_ESCOLA}
-6. Se não souber responder, sugira falar com atendente (digitar 6)
+1. Seja extremamente acolhedor, vibrante e use emojis relacionados à dança (💃, 🕺, ✨, 🎶).
+2. Respostas curtas e diretas (máximo 3 parágrafos).
+3. Use termos como "Vem dançar com a gente!", "A dança transforma!", "Será um prazer ter você na nossa família Xpace!".
+4. Sempre mencione que pode digitar 6 para falar com atendente.
+5. Para agendar aula experimental, indique digitar 4.
+6. Link com mais informações: ${LINK_ESCOLA}
+7. Se não souber responder, sugira falar com atendente (digitar 6).
 `;
 
 async function askGemini(userMessage) {
@@ -357,7 +358,7 @@ async function logMessage(phoneNumber, message, isFromBot, isFromAdmin = false) 
 // Verificar se o admin está atendendo (mandou mensagem nos últimos 5 horas)
 // Verifica tanto pelo número real quanto pelo LID correspondente
 async function isAdminAttending(phoneNumber) {
-  const fiveHoursAgo = new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString();
+  const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
   
   // Lista de números para verificar (número real + LID se existir)
   const numbersToCheck = [phoneNumber];
@@ -369,19 +370,19 @@ async function isAdminAttending(phoneNumber) {
     numbersToCheck.push(`${lidId}@lid`);
   }
   
-  // Buscar a última mensagem do ADMIN para esse número ou LID nos últimos 5 horas
+  // Buscar a última mensagem do ADMIN para esse número ou LID nos últimos 12 horas
   const { data, error } = await supabase
     .from('message_logs')
     .select('is_from_admin, created_at, phone_number')
     .in('phone_number', numbersToCheck)
     .eq('is_from_admin', true)  // Buscar APENAS mensagens do admin
-    .gte('created_at', fiveHoursAgo)
+    .gte('created_at', twelveHoursAgo)
     .order('created_at', { ascending: false })
     .limit(1);
 
   if (error || !data || data.length === 0) return false;
   
-  // Se existe mensagem do admin nos últimos 5 horas, ele está atendendo
+  // Se existe mensagem do admin nos últimos 12 horas, ele está atendendo
   console.log(`🔍 Admin atendeu ${phoneNumber} (encontrado em ${data[0].phone_number}) às ${data[0].created_at}`);
   return true;
 }
@@ -888,10 +889,10 @@ app.post('/webhook', async (req, res) => {
     console.log('📩 Webhook recebido:', JSON.stringify(data, null, 2));
 
     // Z-API envia diferentes tipos de eventos
-    // Mensagem de texto recebida
-    if (data.text && data.phone) {
+    // Mensagem de texto ou áudio recebida
+    if ((data.text || data.audio) && data.phone) {
       let phoneNumber = data.phone;
-      const message = data.text.message || data.text;
+      const message = data.text ? (data.text.message || data.text) : '[ÁUDIO]';
       const isFromMe = data.fromMe || false;
       const isFromApi = data.fromApi || false;
       const chatLid = data.chatLid || null;
@@ -942,6 +943,29 @@ app.post('/webhook', async (req, res) => {
       // Verificar se é comando para reativar (verificar ANTES de checar pausa)
       const msgTrimmed = message.toLowerCase().trim();
       
+      // VERIFICAR HORÁRIO DE ATENDIMENTO (Só para clientes, não para comandos de admin)
+      const now = new Date();
+      const hour = now.getHours();
+      const day = now.getDay(); // 0 = Domingo, 1 = Segunda, ..., 6 = Sábado
+      
+      let isOutOfOffice = false;
+      let oooMessage = '';
+      
+      if (day === 0) { // Domingo
+        isOutOfOffice = true;
+        oooMessage = 'Olá! 👋 No momento estamos descansando. Nosso atendimento humano volta na segunda-feira a partir das 09:00! 😊 Mas fique à vontade para tirar suas dúvidas com nosso assistente virtual abaixo!';
+      } else if (day === 6) { // Sábado
+        if (hour < 8 || hour >= 12) {
+          isOutOfOffice = true;
+          oooMessage = 'Olá! 👋 Nosso atendimento humano aos sábados é das 08:00 às 12:00. No momento estamos fora do horário, mas você pode tirar suas dúvidas com nosso assistente virtual abaixo! 😊';
+        }
+      } else { // Segunda a Sexta
+        if (hour < 8 || hour >= 21) {
+          isOutOfOffice = true;
+          oooMessage = 'Olá! 👋 Nosso atendimento humano é das 08:00 às 21:00. No momento estamos fora do horário, mas nosso assistente virtual está aqui para te ajudar com o que precisar! 😊';
+        }
+      }
+      
       // Comando /stop - processar ANTES do agrupamento
       if (msgTrimmed === '/stop' || msgTrimmed === 'stop') {
         console.log(`⏸️ Comando /stop recebido de ${phoneNumber}`);
@@ -981,6 +1005,13 @@ app.post('/webhook', async (req, res) => {
       if (adminAttending) {
         console.log(`👤 Admin está atendendo ${phoneNumber}, bot não responde`);
         return res.status(200).json({ status: 'admin_attending' });
+      }
+      
+      // Se estiver fora do horário, enviar aviso antes de processar
+      if (isOutOfOffice && !pendingMessages.has(phoneNumber)) {
+        await sendTextMessage(phoneNumber, oooMessage);
+        // Aguardar um pouco para a mensagem de OOO aparecer antes da resposta do bot
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
 
       // Sistema de agrupamento de mensagens
