@@ -55,6 +55,7 @@ PLANOS E PREÇOS:
 - Plano Anual: R$165/mês
 - Plano Semestral: R$195/mês
 - Plano Mensal: R$215/mês
+- Aceitamos Wellhub (antigo Gympass) e TotalPass em todas as modalidades!
 - Turmas 1x na semana: Anual R$100, Semestral R$115, Mensal R$130
 - Modalidade adicional: R$75/mês
 - Matrícula: R$80
