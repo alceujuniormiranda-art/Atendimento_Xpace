@@ -889,10 +889,16 @@ app.post('/webhook', async (req, res) => {
     console.log('📩 Webhook recebido:', JSON.stringify(data, null, 2));
 
     // Z-API envia diferentes tipos de eventos
-    // Mensagem de texto ou áudio recebida
-    if ((data.text || data.audio) && data.phone) {
+    // Z-API envia diferentes tipos de eventos
+    // Mensagem de texto, áudio ou mensagem editada recebida
+    if ((data.text || data.audio || data.textEdit) && data.phone) {
       let phoneNumber = data.phone;
-      const message = data.text ? (data.text.message || data.text) : '[ÁUDIO]';
+      let message = '[MENSAGEM]';
+      
+      if (data.text) message = data.text.message || data.text;
+      else if (data.audio) message = '[ÁUDIO]';
+      else if (data.textEdit) message = data.textEdit.message || '[MENSAGEM EDITADA]';
+
       const isFromMe = data.fromMe || false;
       const isFromApi = data.fromApi || false;
       const chatLid = data.chatLid || null;
