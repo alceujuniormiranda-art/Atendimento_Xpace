@@ -950,9 +950,11 @@ app.post('/webhook', async (req, res) => {
       const msgTrimmed = message.toLowerCase().trim();
       
       // VERIFICAR HORÁRIO DE ATENDIMENTO (Só para clientes, não para comandos de admin)
+      // Ajustar para o fuso horário de Brasília (UTC-3)
       const now = new Date();
-      const hour = now.getHours();
-      const day = now.getDay(); // 0 = Domingo, 1 = Segunda, ..., 6 = Sábado
+      const brTime = new Date(now.toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
+      const hour = brTime.getHours();
+      const day = brTime.getDay(); // 0 = Domingo, 1 = Segunda, ..., 6 = Sábado
       
       let isOutOfOffice = false;
       let oooMessage = '';
