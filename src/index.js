@@ -1015,16 +1015,9 @@ app.post('/webhook', async (req, res) => {
         return res.status(200).json({ status: 'admin_attending' });
       }
       
-      // Se estiver fora do horário, enviar aviso antes de processar
-      if (isOutOfOffice && !pendingMessages.has(phoneNumber)) {
-        await sendTextMessage(phoneNumber, oooMessage);
-        // Aguardar um pouco para a mensagem de OOO aparecer antes da resposta do bot
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
-
       // Sistema de agrupamento de mensagens
-      // Se já existe mensagens pendentes para esse número, adiciona e reinicia timer
       if (pendingMessages.has(phoneNumber)) {
+        // Se já existe mensagens pendentes para esse número, adiciona e reinicia timer
         const pending = pendingMessages.get(phoneNumber);
         pending.messages.push(message);
         clearTimeout(pending.timer);
@@ -1032,6 +1025,14 @@ app.post('/webhook', async (req, res) => {
         console.log(`⏳ Mensagem agrupada para ${phoneNumber} (total: ${pending.messages.length})`);
       } else {
         // Primeira mensagem - inicia o agrupamento
+        
+        // Se estiver fora do horário, enviar aviso APENAS na primeira mensagem do grupo
+        if (isOutOfOffice) {
+          await sendTextMessage(phoneNumber, oooMessage);
+          // Aguardar um pouco para a mensagem de OOO aparecer antes da resposta do bot
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+
         pendingMessages.set(phoneNumber, {
           messages: [message],
           timer: setTimeout(() => processGroupedMessages(phoneNumber), MESSAGE_GROUP_DELAY)
