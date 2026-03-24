@@ -252,6 +252,43 @@ async function resumeBot(phoneNumber) {
   return !error;
 }
 
+// ============================================
+// FUNÇÕES DE CONFIGURAÇÃO GLOBAL
+// ============================================
+
+async function isBotEnabled() {
+  try {
+    const { data, error } = await supabase
+      .from('global_settings')
+      .select('value')
+      .eq('key', 'bot_enabled')
+      .single();
+
+    if (error || !data) return true; // Ligado por padrão se houver erro
+    return data.value === true;
+  } catch (err) {
+    console.log('⚠️ Erro ao verificar status global do bot:', err.message);
+    return true;
+  }
+}
+
+async function setBotEnabled(enabled) {
+  try {
+    const { error } = await supabase
+      .from('global_settings')
+      .upsert({
+        key: 'bot_enabled',
+        value: enabled,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'key' });
+
+    return !error;
+  } catch (err) {
+    console.log('⚠️ Erro ao atualizar status global do bot:', err.message);
+    return false;
+  }
+}
+
 // Funções para mapeamento LID -> telefone
 async function saveLidMapping(chatLid, phoneNumber) {
   if (!chatLid || !phoneNumber) return;
@@ -943,11 +980,39 @@ app.post('/webhook', async (req, res) => {
       // Registrar mensagem recebida
       await logMessage(phoneNumber, message, false);
 
+      // ============================================
+      // COMANDOS DE ADMINISTRADOR (MESTRE)
+      // ============================================
+      const msgTrimmed = message.toLowerCase().trim();
+      const isAdmin = phoneNumber.includes(ADMIN_PHONE);
+
+      if (isAdmin) {
+        if (msgTrimmed === '#desligado') {
+          console.log('🛑 Comando Mestre: DESLIGANDO BOT GLOBALMENTE');
+          await setBotEnabled(false);
+          await sendTextMessage(phoneNumber, '🛑 *BOT DESLIGADO GLOBALMENTE!*\n\nO atendimento automático foi desativado para todos os clientes. Agora você está no controle total! 🫡');
+          return res.status(200).json({ status: 'bot_disabled_globally' });
+        }
+
+        if (msgTrimmed === '#ligado') {
+          console.log('✅ Comando Mestre: LIGANDO BOT GLOBALMENTE');
+          await setBotEnabled(true);
+          await sendTextMessage(phoneNumber, '✅ *BOT LIGADO GLOBALMENTE!*\n\nO atendimento automático foi reativado para todos os clientes. A IA voltou ao trabalho! 💃✨');
+          return res.status(200).json({ status: 'bot_enabled_globally' });
+        }
+      }
+
+      // Verificar se o bot está habilitado globalmente
+      const botEnabled = await isBotEnabled();
+      if (!botEnabled) {
+        console.log('⏸️ Bot desativado globalmente, ignorando mensagem');
+        return res.status(200).json({ status: 'bot_disabled_globally' });
+      }
+
       // Verificar se o bot está pausado
       const paused = await isBotPaused(phoneNumber);
       
       // Verificar se é comando para reativar (verificar ANTES de checar pausa)
-      const msgTrimmed = message.toLowerCase().trim();
       
       // VERIFICAR HORÁRIO DE ATENDIMENTO (Só para clientes, não para comandos de admin)
       // Ajustar para o fuso horário de Brasília (UTC-3)
