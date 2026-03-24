@@ -39,7 +39,7 @@ const IMAGE_PLANOS_URL = process.env.IMAGE_PLANOS_URL || 'https://files.manuscdn
 const IMAGE_HORARIOS_SEG_QUA = process.env.IMAGE_HORARIOS_SEG_QUA || 'https://files.manuscdn.com/user_upload_by_module/session_file/310419663028412628/zIUpHHyKgCesvxiV.png';
 const IMAGE_HORARIOS_TER_QUI = process.env.IMAGE_HORARIOS_TER_QUI || 'https://files.manuscdn.com/user_upload_by_module/session_file/310419663028412628/YwDOkemwpAfjuQRF.png';
 const IMAGE_HORARIOS_SEX_SAB = process.env.IMAGE_HORARIOS_SEX_SAB || 'https://files.manuscdn.com/user_upload_by_module/session_file/310419663028412628/NSOgYNvcrAdBYRbx.png';
-const ADMIN_PHONE = process.env.ADMIN_PHONE || '5547999110328';
+const ADMIN_PHONE = process.env.ADMIN_PHONE || '554799110328';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 
 // ============================================
@@ -1000,6 +1000,11 @@ app.post('/webhook', async (req, res) => {
           await sendTextMessage(phoneNumber, '✅ *BOT LIGADO GLOBALMENTE!*\n\nO atendimento automático foi reativado para todos os clientes. A IA voltou ao trabalho! 💃✨');
           return res.status(200).json({ status: 'bot_enabled_globally' });
         }
+      }
+
+      // Se a mensagem foi enviada por mim (admin), resolver o número real
+      if (isFromMe) {
+        // ... (lógica existente de isFromMe)
       }
 
       // Verificar se o bot está habilitado globalmente
