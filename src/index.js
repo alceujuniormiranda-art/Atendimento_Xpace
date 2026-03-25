@@ -26,7 +26,7 @@ const ZAPI_HEADERS = {
 };
 
 // Outras configurações
-const BOT_TIMEOUT_MINUTES = parseInt(process.env.BOT_TIMEOUT_MINUTES) || 720; // 12 horas padrão
+const BOT_TIMEOUT_MINUTES = parseInt(process.env.BOT_TIMEOUT_MINUTES) || 720; // 12 horas padrão (720 minutos)
 const MESSAGE_GROUP_DELAY = 5000; // 5 segundos para agrupar mensagens
 
 // Sistema de agrupamento de mensagens
