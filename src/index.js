@@ -141,7 +141,9 @@ async function askGemini(userMessage) {
     return text || null;
   } catch (error) {
     console.error('❌ Erro ao consultar Gemini:', error.response?.data || error.message);
-    return null;
+    
+    // REDE DE SEGURANÇA: Se a IA falhar (ex: falta de cota), retornar uma resposta padrão amigável
+    return "Olá! 👋 Recebi sua mensagem, mas meu sistema de inteligência está passando por uma rápida manutenção. 🛠️\n\nMas não se preocupe! Você pode digitar *6* para falar com um de nossos atendentes agora mesmo, ou aguardar um momentinho que já te respondo! 😊✨";
   }
 }
 
@@ -938,12 +940,20 @@ app.post('/webhook', async (req, res) => {
 
       const isFromMe = data.fromMe || false;
       const isFromApi = data.fromApi || false;
+      const isGroup = data.isGroup || false;
+      const isNewsletter = data.isNewsletter || false;
       const chatLid = data.chatLid || null;
 
       // Ignorar mensagens enviadas pela API (respostas do próprio bot)
       if (isFromApi) {
         console.log(`🤖 Mensagem do bot (fromApi), ignorando`);
         return res.status(200).json({ status: 'ignored_bot_message' });
+      }
+
+      // Ignorar mensagens de Grupos ou Newsletters para economizar cota de IA
+      if (isGroup || isNewsletter) {
+        console.log(`📢 Mensagem de Grupo ou Newsletter, ignorando para economizar cota`);
+        return res.status(200).json({ status: 'ignored_group_newsletter' });
       }
 
       // Se a mensagem foi enviada por mim (admin), resolver o número real
