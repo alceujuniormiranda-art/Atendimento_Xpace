@@ -958,6 +958,8 @@ app.post('/webhook', async (req, res) => {
 
       // Se a mensagem foi enviada por mim (admin), resolver o número real
       if (isFromMe) {
+        console.log(`👤 Mensagem detectada como vinda do ADMIN (fromMe: true) para ${phoneNumber}`);
+        
         // Verificar se o phone veio como @lid (ID interno do WhatsApp)
         if (phoneNumber.includes('@lid') || phoneNumber.includes('@')) {
           console.log(`🔍 Phone veio como LID: ${phoneNumber}, tentando resolver...`);
@@ -976,7 +978,15 @@ app.post('/webhook', async (req, res) => {
         
         // Registrar que o admin está atendendo esse contato
         await logMessage(phoneNumber, message, false, true);
-        console.log(`👤 Admin enviou mensagem para ${phoneNumber} - bot pausado automaticamente`);
+        console.log(`👤 Admin enviou mensagem para ${phoneNumber} - bot pausado automaticamente por 12h`);
+        
+        // Cancelar qualquer mensagem pendente no agrupamento para esse cliente
+        if (pendingMessages.has(phoneNumber)) {
+          console.log(`🛑 Cancelando mensagens pendentes para ${phoneNumber} pois admin assumiu`);
+          clearTimeout(pendingMessages.get(phoneNumber).timer);
+          pendingMessages.delete(phoneNumber);
+        }
+        
         return res.status(200).json({ status: 'admin_attending' });
       }
 
