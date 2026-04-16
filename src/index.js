@@ -772,9 +772,12 @@ Quer experimentar? Digite *4* para agendar sua aula experimental! 🎉`
   if (msgLower === '4' || msgLower.match(/(experimental|experimentar|conhecer|visitar|teste|testar)/)) {
     return {
       type: 'text',
-      content: `🎉 *Aula Experimental Gratuita!*
+      content: `🎉 *Aula Experimental na Xpace!*
 
-Que legal que você quer conhecer a Xpace! 
+Que legal que você quer conhecer a nossa escola! 💃🕺
+
+📌 *Como funciona:*
+As suas **duas primeiras aulas experimentais são gratuitas!** ✨ Após isso, caso queira continuar sem um plano mensal, o valor da aula avulsa é de **R$ 40,00**.
 
 Para agendar sua aula experimental, acesse o link abaixo e escolha o melhor horário:
 
