@@ -36,9 +36,9 @@ const pendingMessages = new Map(); // phoneNumber -> { messages: [], timer: null
 const lidToPhoneCache = new Map();
 const LINK_ESCOLA = process.env.LINK_ESCOLA || 'https://links.nextfit.bio/5e3eXmh';
 const IMAGE_PLANOS_URL = process.env.IMAGE_PLANOS_URL || 'https://files.manuscdn.com/user_upload_by_module/session_file/310519663188334106/JIyArqOviydhbQnG.jpeg';
-const IMAGE_HORARIOS_SEG_QUA = process.env.IMAGE_HORARIOS_SEG_QUA || 'https://files.manuscdn.com/user_upload_by_module/session_file/310419663028412628/zIUpHHyKgCesvxiV.png';
-const IMAGE_HORARIOS_TER_QUI = process.env.IMAGE_HORARIOS_TER_QUI || 'https://files.manuscdn.com/user_upload_by_module/session_file/310419663028412628/YwDOkemwpAfjuQRF.png';
-const IMAGE_HORARIOS_SEX_SAB = process.env.IMAGE_HORARIOS_SEX_SAB || 'https://files.manuscdn.com/user_upload_by_module/session_file/310419663028412628/NSOgYNvcrAdBYRbx.png';
+const IMAGE_HORARIOS_SEG_QUA = process.env.IMAGE_HORARIOS_SEG_QUA || 'https://files.manuscdn.com/user_upload_by_module/session_file/310419663028412628/MPgBeaaOLvxkjIFq.PNG';
+const IMAGE_HORARIOS_TER_QUI = process.env.IMAGE_HORARIOS_TER_QUI || 'https://files.manuscdn.com/user_upload_by_module/session_file/310419663028412628/ypnhCqPUxnkbSCdY.PNG';
+const IMAGE_HORARIOS_SEX_SAB = process.env.IMAGE_HORARIOS_SEX_SAB || 'https://files.manuscdn.com/user_upload_by_module/session_file/310419663028412628/NlgVjoEQzjttBdEe.PNG';
 const ADMIN_PHONE = process.env.ADMIN_PHONE || '554799110328';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 
