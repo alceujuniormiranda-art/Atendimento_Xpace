@@ -28,6 +28,7 @@ const ZAPI_HEADERS = {
 // Outras configurações
 const BOT_TIMEOUT_MINUTES = 720; // Forçado para 12 horas (720 minutos) para garantir estabilidade no Render
 const MESSAGE_GROUP_DELAY = 5000; // 5 segundos para agrupar mensagens
+const OOO_TIMEOUT_MINUTES = 720; // 12 horas para não repetir mensagem de fora do horário
 
 // Sistema de agrupamento de mensagens
 const pendingMessages = new Map(); // phoneNumber -> { messages: [], timer: null }
@@ -55,7 +56,7 @@ PLANOS E PREÇOS:
 - Plano Anual: R$165/mês
 - Plano Semestral: R$195/mês
 - Plano Mensal: R$215/mês
-- Aceitamos Wellhub (antigo Gympass) e TotalPass em todas as modalidades!
+- Aceitamos Wellhub (antigo Gympass) e TotalPass APENAS para as modalidades: Ritmos, Jazz Funk (Terça), Heels (Quinta), Street Funk, Contemporâneo, Jazz, Ballet Fit e Muay Thai.
 - Turmas 1x na semana: Anual R$100, Semestral R$115, Mensal R$130
 - Modalidade adicional: R$75/mês
 - Matrícula: R$80
@@ -106,6 +107,7 @@ REGRAS DE RESPOSTA:
 5. Para agendar aula experimental, indique digitar 4.
 6. Link com mais informações: ${LINK_ESCOLA}
 7. Se não souber responder, sugira falar com atendente (digitar 6).
+8. IMPORTANTE: Para perguntas sobre Wellhub ou TotalPass, reforce que aceitamos APENAS para as modalidades listadas acima.
 `;
 
 async function askGemini(userMessage) {
@@ -150,6 +152,35 @@ async function askGemini(userMessage) {
 // ============================================
 // FUNÇÕES DE BANCO DE DADOS
 // ============================================
+
+// Verifica se enviou mensagem de fora do horário recentemente
+async function shouldSendOOOMessage(phoneNumber) {
+  const { data, error } = await supabase
+    .from('conversations')
+    .select('last_ooo_at')
+    .eq('phone_number', phoneNumber)
+    .single();
+
+  if (error || !data || !data.last_ooo_at) return true;
+
+  const lastOOO = new Date(data.last_ooo_at);
+  const now = new Date();
+  const diffMinutes = (now - lastOOO) / (1000 * 60);
+
+  return diffMinutes >= OOO_TIMEOUT_MINUTES;
+}
+
+// Atualiza o timestamp da última mensagem de fora do horário
+async function updateOOOTimestamp(phoneNumber) {
+  const now = new Date().toISOString();
+  await supabase
+    .from('conversations')
+    .upsert({
+      phone_number: phoneNumber,
+      last_ooo_at: now,
+      updated_at: now
+    }, { onConflict: 'phone_number' });
+}
 
 // Verifica se o bot está pausado para um número (verifica também pelo LID)
 async function isBotPaused(phoneNumber) {
@@ -418,7 +449,7 @@ async function isAdminAttending(phoneNumber) {
     .gte('created_at', twelveHoursAgo)
     .order('created_at', { ascending: false })
     .limit(1);
-
+  
   if (error || !data || data.length === 0) return false;
   
   // Se existe mensagem do admin nos últimos 12 horas, ele está atendendo
@@ -779,7 +810,7 @@ Que legal que você quer conhecer a nossa escola! 💃🕺
 📌 *Como funciona:*
 As suas **duas primeiras aulas experimentais são gratuitas!** ✨ Após isso, caso queira continuar sem um plano mensal, o valor da aula avulsa é de **R$ 40,00**.
 
-Para agendar sua aula experimental, acesse o link abaixo e escolha o melhor horário:
+Para agendar sua aula experimental, acesse le link abaixo e escolha o melhor horário:
 
 🔗 ${LINK_ESCOLA}
 
@@ -931,7 +962,6 @@ app.post('/webhook', async (req, res) => {
     console.log('📩 Webhook recebido:', JSON.stringify(data, null, 2));
 
     // Z-API envia diferentes tipos de eventos
-    // Z-API envia diferentes tipos de eventos
     // Mensagem de texto, áudio ou mensagem editada recebida
     if ((data.text || data.audio || data.textEdit) && data.phone) {
       let phoneNumber = data.phone;
@@ -975,7 +1005,6 @@ app.post('/webhook', async (req, res) => {
             console.log(`✅ Número real encontrado: ${phoneNumber}`);
           } else {
             console.log(`⚠️ Não foi possível resolver LID para número real`);
-            // Mesmo sem resolver, registrar para não perder a informação
           }
         }
         
@@ -1025,11 +1054,6 @@ app.post('/webhook', async (req, res) => {
         }
       }
 
-      // Se a mensagem foi enviada por mim (admin), resolver o número real
-      if (isFromMe) {
-        // ... (lógica existente de isFromMe)
-      }
-
       // Verificar se o bot está habilitado globalmente
       const botEnabled = await isBotEnabled();
       if (!botEnabled) {
@@ -1040,43 +1064,14 @@ app.post('/webhook', async (req, res) => {
       // Verificar se o bot está pausado
       const paused = await isBotPaused(phoneNumber);
       
-      // Verificar se é comando para reativar (verificar ANTES de checar pausa)
-      
-      // VERIFICAR HORÁRIO DE ATENDIMENTO (Só para clientes, não para comandos de admin)
-      // Ajustar para o fuso horário de Brasília (UTC-3)
-      const now = new Date();
-      const brTime = new Date(now.toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
-      const hour = brTime.getHours();
-      const day = brTime.getDay(); // 0 = Domingo, 1 = Segunda, ..., 6 = Sábado
-      
-      let isOutOfOffice = false;
-      let oooMessage = '';
-      
-      if (day === 0) { // Domingo
-        isOutOfOffice = true;
-        oooMessage = 'Olá! 👋 No momento estamos descansando. Nosso atendimento humano volta na segunda-feira a partir das 09:00! 😊 Mas fique à vontade para tirar suas dúvidas com nosso assistente virtual abaixo!';
-      } else if (day === 6) { // Sábado
-        if (hour < 8 || hour >= 12) {
-          isOutOfOffice = true;
-          oooMessage = 'Olá! 👋 Nosso atendimento humano aos sábados é das 08:00 às 12:00. No momento estamos fora do horário, mas você pode tirar suas dúvidas com nosso assistente virtual abaixo! 😊';
-        }
-      } else { // Segunda a Sexta
-        if (hour < 8 || hour >= 21) {
-          isOutOfOffice = true;
-          oooMessage = 'Olá! 👋 Nosso atendimento humano é das 08:00 às 21:00. No momento estamos fora do horário, mas nosso assistente virtual está aqui para te ajudar com o que precisar! 😊';
-        }
-      }
-      
       // Comando /stop - processar ANTES do agrupamento
       if (msgTrimmed === '/stop' || msgTrimmed === 'stop') {
         console.log(`⏸️ Comando /stop recebido de ${phoneNumber}`);
-        // Cancelar mensagens pendentes se houver
         if (pendingMessages.has(phoneNumber)) {
           clearTimeout(pendingMessages.get(phoneNumber).timer);
           pendingMessages.delete(phoneNumber);
         }
         await pauseBot(phoneNumber);
-        // Notificar admin sobre novo atendimento
         notifyAdmin(phoneNumber, null).catch(err => {
           console.error('Erro ao notificar admin:', err.message);
         });
@@ -1086,7 +1081,6 @@ app.post('/webhook', async (req, res) => {
       
       if (msgTrimmed === '/start' || msgTrimmed === 'start' || msgTrimmed === 'iniciar' || msgTrimmed === 'voltar') {
         console.log(`▶️ Comando de reativação recebido de ${phoneNumber}`);
-        // Cancelar mensagens pendentes se houver
         if (pendingMessages.has(phoneNumber)) {
           clearTimeout(pendingMessages.get(phoneNumber).timer);
           pendingMessages.delete(phoneNumber);
@@ -1110,7 +1104,6 @@ app.post('/webhook', async (req, res) => {
       
       // Sistema de agrupamento de mensagens
       if (pendingMessages.has(phoneNumber)) {
-        // Se já existe mensagens pendentes para esse número, adiciona e reinicia timer
         const pending = pendingMessages.get(phoneNumber);
         pending.messages.push(message);
         clearTimeout(pending.timer);
@@ -1119,11 +1112,38 @@ app.post('/webhook', async (req, res) => {
       } else {
         // Primeira mensagem - inicia o agrupamento
         
-        // Se estiver fora do horário, enviar aviso APENAS na primeira mensagem do grupo
+        // VERIFICAR HORÁRIO DE ATENDIMENTO
+        const now = new Date();
+        const brTime = new Date(now.toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
+        const hour = brTime.getHours();
+        const day = brTime.getDay();
+        
+        let isOutOfOffice = false;
+        let oooMessage = '';
+        
+        if (day === 0) { // Domingo
+          isOutOfOffice = true;
+          oooMessage = 'Olá! 👋 No momento estamos descansando. Nosso atendimento humano volta na segunda-feira a partir das 09:00! 😊 Mas fique à vontade para tirar suas dúvidas com nosso assistente virtual abaixo!';
+        } else if (day === 6) { // Sábado
+          if (hour < 8 || hour >= 12) {
+            isOutOfOffice = true;
+            oooMessage = 'Olá! 👋 Nosso atendimento humano aos sábados é das 08:00 às 12:00. No momento estamos fora do horário, mas você pode tirar suas dúvidas com nosso assistente virtual abaixo! 😊';
+          }
+        } else { // Segunda a Sexta
+          if (hour < 8 || hour >= 21) {
+            isOutOfOffice = true;
+            oooMessage = 'Olá! 👋 Nosso atendimento humano é das 08:00 às 21:00. No momento estamos fora do horário, mas nosso assistente virtual está aqui para te ajudar com o que precisar! 😊';
+          }
+        }
+
+        // Enviar aviso de fora do horário apenas se necessário (trava de 12h)
         if (isOutOfOffice) {
-          await sendTextMessage(phoneNumber, oooMessage);
-          // Aguardar um pouco para a mensagem de OOO aparecer antes da resposta do bot
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          const sendOOO = await shouldSendOOOMessage(phoneNumber);
+          if (sendOOO) {
+            await sendTextMessage(phoneNumber, oooMessage);
+            await updateOOOTimestamp(phoneNumber);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
         }
 
         pendingMessages.set(phoneNumber, {
@@ -1141,16 +1161,12 @@ app.post('/webhook', async (req, res) => {
   }
 });
 
-// ============================================
-// ROTAS ADMINISTRATIVAS
-// ============================================
-
 app.get('/', (req, res) => {
   res.json({ 
     status: 'online',
     bot: 'Xpace Escola de Dança',
     api: 'Z-API',
-    version: '2.0.0'
+    version: '2.1.0'
   });
 });
 
@@ -1174,14 +1190,7 @@ app.get('/admin/paused', async (req, res) => {
   res.json(data || []);
 });
 
-// ============================================
-// INICIAR SERVIDOR
-// ============================================
-
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`🚀 Bot Xpace rodando na porta ${PORT}`);
-  console.log(`📱 Webhook disponível em: /webhook`);
-  console.log(`🔗 Z-API Instance: ${ZAPI_INSTANCE_ID}`);
-  console.log(`⏱️ Timeout do bot: ${BOT_TIMEOUT_MINUTES} minutos`);
+  console.log(`🚀 Servidor rodando na porta ${PORT}`);
 });
