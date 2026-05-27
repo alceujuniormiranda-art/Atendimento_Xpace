@@ -56,7 +56,7 @@ PLANOS E PREÇOS:
 - Plano Anual: R$165/mês
 - Plano Semestral: R$195/mês
 - Plano Mensal: R$215/mês
-- Aceitamos Wellhub (antigo Gympass) e TotalPass APENAS para as modalidades: Ritmos, Jazz Funk (Terça), Heels (Quinta), Street Funk, Contemporâneo, Jazz, Ballet Fit e Muay Thai.
+- Aceitamos Wellhub (antigo Gympass) e TotalPass APENAS para as modalidades: Ritmos, Jazz Funk (Terça), Heels (Quinta), Street Funk, Contemporâneo, Jazz, Ballet Fit e Muay Thai. (NUNCA use termos como "ZONA", "Rua Funk" ou "Salto" para se referir a estas modalidades).
 - Turmas 1x na semana: Anual R$100, Semestral R$115, Mensal R$130
 - Modalidade adicional: R$75/mês
 - Matrícula: R$80
