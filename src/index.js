@@ -41,6 +41,7 @@ const IMAGE_HORARIOS_SEG_QUA = process.env.IMAGE_HORARIOS_SEG_QUA || 'https://fi
 const IMAGE_HORARIOS_TER_QUI = process.env.IMAGE_HORARIOS_TER_QUI || 'https://files.manuscdn.com/user_upload_by_module/session_file/310419663028412628/ypnhCqPUxnkbSCdY.PNG';
 const IMAGE_HORARIOS_SEX_SAB = process.env.IMAGE_HORARIOS_SEX_SAB || 'https://files.manuscdn.com/user_upload_by_module/session_file/310419663028412628/NlgVjoEQzjttBdEe.PNG';
 const ADMIN_PHONE = process.env.ADMIN_PHONE || '554799110328';
+const ATTENDANT_PHONE = process.env.ATTENDANT_PHONE || '5547999108856';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 
 // ============================================
@@ -541,8 +542,8 @@ ${summary}
 
 _Clique no link para abrir a conversa_`;
 
-  await sendTextMessage(ADMIN_PHONE, message);
-  console.log(`📢 Admin notificado sobre ${clientPhone}`);
+  await sendTextMessage(ATTENDANT_PHONE, message);
+  console.log(`📢 Atendente notificado sobre ${clientPhone} no número ${ATTENDANT_PHONE}`);
 }
 
 // ============================================
