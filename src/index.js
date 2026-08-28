@@ -692,7 +692,7 @@ Qual vibe combina mais com você hoje?
 2️⃣2️⃣ Quero coreografia, presença e performance
 2️⃣3️⃣ Quero técnica, postura e evolução
 2️⃣4️⃣ Quero aula para criança/adolescente
-2️⃣5️⃣ Quero corpo, flexibilidade e condicionamento
+2️⃣5️⃣ Quero me sentir mais confiante dançando
 
 Responda com *21*, *22*, *23*, *24* ou *25* 😊`;
 
@@ -826,10 +826,11 @@ Quer agendar uma aula experimental gratuita? Digite *4*! 🎉`
       ]
     },
     '25': {
-      title: 'Corpo, flexibilidade e condicionamento',
-      summary: 'Para trabalhar corpo, mobilidade e evolução física, eu olharia primeiro *Ballet Fit*, *Acrobacia*, *Contemporâneo* e *Heels*. São aulas ótimas para ganhar consciência corporal, resistência e confiança.',
+      title: 'Me sentir mais confiante dançando',
+      summary: 'Amei essa escolha! Para ganhar confiança, presença e se sentir melhor dançando, eu indicaria começar por *Ritmos*, *Street Dance*, *Jazz Funk*, *Heels* ou *Contemporâneo*. São aulas que ajudam você a se soltar, criar consciência corporal e evoluir no seu ritmo.',
       images: [
         { url: IMAGE_HORARIOS_SEG_QUA, caption: '📅 *Segunda e Quarta*' },
+        { url: IMAGE_HORARIOS_TER_QUI, caption: '📅 *Terça e Quinta*' },
         { url: IMAGE_HORARIOS_SEX_SAB, caption: '📅 *Sexta e Sábado*' }
       ]
     }
