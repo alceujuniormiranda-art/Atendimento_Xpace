@@ -692,7 +692,7 @@ Qual vibe combina mais com você hoje?
 2️⃣2️⃣ Quero coreografia, presença e performance
 2️⃣3️⃣ Quero técnica, postura e evolução
 2️⃣4️⃣ Quero aula para criança/adolescente
-2️⃣5️⃣ Quero luta, força ou condicionamento
+2️⃣5️⃣ Quero corpo, flexibilidade e condicionamento
 
 Responda com *21*, *22*, *23*, *24* ou *25* 😊`;
 
@@ -826,8 +826,8 @@ Quer agendar uma aula experimental gratuita? Digite *4*! 🎉`
       ]
     },
     '25': {
-      title: 'Luta, força ou condicionamento',
-      summary: 'Para força, disciplina e condicionamento, as melhores opções são *Muay Thai*, *Jiu Jitsu*, *Ballet Fit* e *Acrobacia*. Dá para cuidar do corpo e ainda sair com sensação de missão cumprida.',
+      title: 'Corpo, flexibilidade e condicionamento',
+      summary: 'Para trabalhar corpo, mobilidade e evolução física, eu olharia primeiro *Ballet Fit*, *Acrobacia*, *Contemporâneo* e *Heels*. São aulas ótimas para ganhar consciência corporal, resistência e confiança.',
       images: [
         { url: IMAGE_HORARIOS_SEG_QUA, caption: '📅 *Segunda e Quarta*' },
         { url: IMAGE_HORARIOS_SEX_SAB, caption: '📅 *Sexta e Sábado*' }
