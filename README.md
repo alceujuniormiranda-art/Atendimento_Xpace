@@ -1,6 +1,6 @@
 # 🕺 Bot WhatsApp - Xpace Escola de Dança
 
-Bot de atendimento automático para WhatsApp da Xpace Escola de Dança, utilizando Evolution API, Railway e Supabase.
+Bot de atendimento automático para WhatsApp da Xpace Escola de Dança, utilizando Z-API, Render, Supabase e Gemini.
 
 ## ✨ Funcionalidades
 
@@ -18,14 +18,15 @@ Bot de atendimento automático para WhatsApp da Xpace Escola de Dança, utilizan
 - **Node.js** - Runtime JavaScript
 - **Express** - Servidor web
 - **Supabase** - Banco de dados PostgreSQL
-- **Evolution API** - Conexão com WhatsApp
-- **Railway** - Hospedagem
+- **Z-API** - Conexão com WhatsApp
+- **Render** - Hospedagem
+- **Gemini** - Respostas com IA quando configurado
 
 ## 📋 Pré-requisitos
 
 - Conta no [Supabase](https://supabase.com)
-- Conta no [Railway](https://railway.app)
-- Evolution API configurada
+- Conta no [Render](https://render.com)
+- Z-API configurada
 
 ## 🚀 Instalação
 
@@ -65,14 +66,18 @@ npm start
 | Variável | Descrição |
 |----------|-----------|
 | `SUPABASE_URL` | URL do projeto Supabase |
-| `SUPABASE_ANON_KEY` | Chave pública do Supabase |
 | `SUPABASE_SERVICE_KEY` | Chave de serviço do Supabase |
-| `EVOLUTION_API_URL` | URL da Evolution API |
-| `EVOLUTION_API_KEY` | Chave da Evolution API |
-| `EVOLUTION_INSTANCE` | Nome da instância (padrão: xpace) |
+| `ZAPI_INSTANCE_ID` | ID da instância na Z-API |
+| `ZAPI_TOKEN` | Token da instância na Z-API |
+| `ZAPI_CLIENT_TOKEN` | Client token da Z-API |
+| `GEMINI_API_KEY` | Chave do Gemini para respostas com IA |
+| `ADMIN_PHONE` | Número autorizado para comandos globais |
+| `ATTENDANT_PHONE` | Número que recebe avisos de atendimento humano |
 | `BOT_TIMEOUT_MINUTES` | Tempo para reativar bot (padrão: 30) |
 | `IMAGE_PLANOS_URL` | URL da imagem dos planos |
-| `IMAGE_GRADE_URL` | URL da imagem da grade de horários |
+| `IMAGE_HORARIOS_SEG_QUA` | URL da imagem de horários de segunda/quarta |
+| `IMAGE_HORARIOS_TER_QUI` | URL da imagem de horários de terça/quinta |
+| `IMAGE_HORARIOS_SEX_SAB` | URL da imagem de horários de sexta/sábado |
 | `LINK_ESCOLA` | Link com informações da escola |
 
 ## 📱 Comandos do Bot

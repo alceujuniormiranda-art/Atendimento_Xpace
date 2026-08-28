@@ -9,9 +9,13 @@ CREATE TABLE IF NOT EXISTS conversations (
     phone_number VARCHAR(20) UNIQUE NOT NULL,
     bot_paused BOOLEAN DEFAULT FALSE,
     paused_at TIMESTAMP WITH TIME ZONE,
+    last_ooo_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+ALTER TABLE conversations
+ADD COLUMN IF NOT EXISTS last_ooo_at TIMESTAMP WITH TIME ZONE;
 
 -- Índice para busca rápida por número
 CREATE INDEX IF NOT EXISTS idx_conversations_phone ON conversations(phone_number);
@@ -22,8 +26,12 @@ CREATE TABLE IF NOT EXISTS message_logs (
     phone_number VARCHAR(20) NOT NULL,
     message TEXT,
     is_from_bot BOOLEAN DEFAULT FALSE,
+    is_from_admin BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+ALTER TABLE message_logs
+ADD COLUMN IF NOT EXISTS is_from_admin BOOLEAN DEFAULT FALSE;
 
 -- Índice para busca por número e data
 CREATE INDEX IF NOT EXISTS idx_message_logs_phone ON message_logs(phone_number);
@@ -42,6 +50,29 @@ CREATE TABLE IF NOT EXISTS custom_responses (
 
 -- Índice para busca por keyword
 CREATE INDEX IF NOT EXISTS idx_custom_responses_keyword ON custom_responses(keyword);
+
+-- Tabela de mapeamento entre LID interno do WhatsApp e telefone real
+CREATE TABLE IF NOT EXISTS lid_mapping (
+    id BIGSERIAL PRIMARY KEY,
+    lid_id VARCHAR(100) UNIQUE NOT NULL,
+    phone_number VARCHAR(20) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_lid_mapping_lid ON lid_mapping(lid_id);
+CREATE INDEX IF NOT EXISTS idx_lid_mapping_phone ON lid_mapping(phone_number);
+
+-- Configurações globais do bot
+CREATE TABLE IF NOT EXISTS global_settings (
+    key TEXT PRIMARY KEY,
+    value JSONB,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+INSERT INTO global_settings (key, value)
+VALUES ('bot_enabled', 'true'::jsonb)
+ON CONFLICT (key) DO NOTHING;
 
 -- ============================================
 -- INSERIR ALGUMAS RESPOSTAS PERSONALIZADAS DE EXEMPLO
@@ -62,8 +93,18 @@ ON CONFLICT DO NOTHING;
 ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE message_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE custom_responses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE lid_mapping ENABLE ROW LEVEL SECURITY;
+ALTER TABLE global_settings ENABLE ROW LEVEL SECURITY;
 
 -- Políticas para permitir acesso via service_role
+DROP POLICY IF EXISTS "Enable all for service_role" ON conversations;
+DROP POLICY IF EXISTS "Enable all for service_role" ON message_logs;
+DROP POLICY IF EXISTS "Enable all for service_role" ON custom_responses;
+DROP POLICY IF EXISTS "Enable all for service_role" ON lid_mapping;
+DROP POLICY IF EXISTS "Enable all for service_role" ON global_settings;
+
 CREATE POLICY "Enable all for service_role" ON conversations FOR ALL USING (true);
 CREATE POLICY "Enable all for service_role" ON message_logs FOR ALL USING (true);
 CREATE POLICY "Enable all for service_role" ON custom_responses FOR ALL USING (true);
+CREATE POLICY "Enable all for service_role" ON lid_mapping FOR ALL USING (true);
+CREATE POLICY "Enable all for service_role" ON global_settings FOR ALL USING (true);

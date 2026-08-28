@@ -29,9 +29,11 @@ const ZAPI_HEADERS = {
 const BOT_TIMEOUT_MINUTES = 720; // Forçado para 12 horas (720 minutos) para garantir estabilidade no Render
 const MESSAGE_GROUP_DELAY = 5000; // 5 segundos para agrupar mensagens
 const OOO_TIMEOUT_MINUTES = 720; // 12 horas para não repetir mensagem de fora do horário
+const WEBHOOK_DEDUP_TTL_MS = 15 * 60 * 1000; // Evita reprocessar retries duplicados do Z-API
 
 // Sistema de agrupamento de mensagens
 const pendingMessages = new Map(); // phoneNumber -> { messages: [], timer: null }
+const processedWebhookEvents = new Map(); // eventKey -> timestamp
 
 // Cache de mapeamento LID -> telefone (em memória para performance)
 const lidToPhoneCache = new Map();
@@ -43,6 +45,40 @@ const IMAGE_HORARIOS_SEX_SAB = process.env.IMAGE_HORARIOS_SEX_SAB || 'https://fi
 const ADMIN_PHONE = process.env.ADMIN_PHONE || '554799110328';
 const ATTENDANT_PHONE = process.env.ATTENDANT_PHONE || '5547999108856';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+
+function normalizeWebhookText(value) {
+  if (!value) return '';
+  if (typeof value === 'string') return value;
+  return value.message || JSON.stringify(value);
+}
+
+function getWebhookEventKey(data, phoneNumber, message) {
+  const explicitId = data.messageId || data.messageIdFromMe || data.id || data.msgId || data.message?.id;
+  if (explicitId) {
+    return `${phoneNumber}:${explicitId}`;
+  }
+
+  const eventTime = data.momment || data.moment || data.timestamp || data.messageTimestamp || '';
+  const direction = data.fromMe ? 'from_me' : 'from_client';
+  return `${phoneNumber}:${direction}:${eventTime}:${message}`;
+}
+
+function hasProcessedWebhookEvent(eventKey) {
+  const now = Date.now();
+
+  for (const [key, createdAt] of processedWebhookEvents.entries()) {
+    if (now - createdAt > WEBHOOK_DEDUP_TTL_MS) {
+      processedWebhookEvents.delete(key);
+    }
+  }
+
+  if (processedWebhookEvents.has(eventKey)) {
+    return true;
+  }
+
+  processedWebhookEvents.set(eventKey, now);
+  return false;
+}
 
 // ============================================
 // INTEGRAÇÃO COM GEMINI (IA)
@@ -968,15 +1004,21 @@ app.post('/webhook', async (req, res) => {
       let phoneNumber = data.phone;
       let message = '[MENSAGEM]';
       
-      if (data.text) message = data.text.message || data.text;
+      if (data.text) message = normalizeWebhookText(data.text);
       else if (data.audio) message = '[ÁUDIO]';
-      else if (data.textEdit) message = data.textEdit.message || '[MENSAGEM EDITADA]';
+      else if (data.textEdit) message = normalizeWebhookText(data.textEdit) || '[MENSAGEM EDITADA]';
 
       const isFromMe = data.fromMe || false;
       const isFromApi = data.fromApi || false;
       const isGroup = data.isGroup || false;
       const isNewsletter = data.isNewsletter || false;
       const chatLid = data.chatLid || null;
+      const eventKey = getWebhookEventKey(data, phoneNumber, message);
+
+      if (hasProcessedWebhookEvent(eventKey)) {
+        console.log(`🔁 Webhook duplicado ignorado para ${phoneNumber}`);
+        return res.status(200).json({ status: 'ignored_duplicate' });
+      }
 
       // Ignorar mensagens enviadas pela API (respostas do próprio bot)
       if (isFromApi) {
