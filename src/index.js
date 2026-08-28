@@ -34,6 +34,7 @@ const WEBHOOK_DEDUP_TTL_MS = 15 * 60 * 1000; // Evita reprocessar retries duplic
 // Sistema de agrupamento de mensagens
 const pendingMessages = new Map(); // phoneNumber -> { messages: [], timer: null }
 const processedWebhookEvents = new Map(); // eventKey -> timestamp
+const lastOOOMessageByPhone = new Map(); // phoneNumber -> timestamp
 
 // Cache de mapeamento LID -> telefone (em memória para performance)
 const lidToPhoneCache = new Map();
@@ -78,6 +79,23 @@ function hasProcessedWebhookEvent(eventKey) {
 
   processedWebhookEvents.set(eventKey, now);
   return false;
+}
+
+function hasRecentOOOMessageInMemory(phoneNumber) {
+  const lastSentAt = lastOOOMessageByPhone.get(phoneNumber);
+  if (!lastSentAt) return false;
+
+  const diffMinutes = (Date.now() - lastSentAt) / (1000 * 60);
+  if (diffMinutes >= OOO_TIMEOUT_MINUTES) {
+    lastOOOMessageByPhone.delete(phoneNumber);
+    return false;
+  }
+
+  return true;
+}
+
+function markOOOMessageInMemory(phoneNumber) {
+  lastOOOMessageByPhone.set(phoneNumber, Date.now());
 }
 
 // ============================================
@@ -192,31 +210,50 @@ async function askGemini(userMessage) {
 
 // Verifica se enviou mensagem de fora do horário recentemente
 async function shouldSendOOOMessage(phoneNumber) {
-  const { data, error } = await supabase
-    .from('conversations')
-    .select('last_ooo_at')
-    .eq('phone_number', phoneNumber)
-    .single();
+  if (hasRecentOOOMessageInMemory(phoneNumber)) {
+    return false;
+  }
 
-  if (error || !data || !data.last_ooo_at) return true;
+  try {
+    const { data, error } = await supabase
+      .from('conversations')
+      .select('last_ooo_at')
+      .eq('phone_number', phoneNumber)
+      .single();
 
-  const lastOOO = new Date(data.last_ooo_at);
-  const now = new Date();
-  const diffMinutes = (now - lastOOO) / (1000 * 60);
+    if (error || !data || !data.last_ooo_at) return true;
 
-  return diffMinutes >= OOO_TIMEOUT_MINUTES;
+    const lastOOO = new Date(data.last_ooo_at);
+    const now = new Date();
+    const diffMinutes = (now - lastOOO) / (1000 * 60);
+
+    return diffMinutes >= OOO_TIMEOUT_MINUTES;
+  } catch (err) {
+    console.log('⚠️ Erro ao verificar aviso fora do horário no banco:', err.message);
+    return true;
+  }
 }
 
 // Atualiza o timestamp da última mensagem de fora do horário
 async function updateOOOTimestamp(phoneNumber) {
+  markOOOMessageInMemory(phoneNumber);
+
   const now = new Date().toISOString();
-  await supabase
-    .from('conversations')
-    .upsert({
-      phone_number: phoneNumber,
-      last_ooo_at: now,
-      updated_at: now
-    }, { onConflict: 'phone_number' });
+  try {
+    const { error } = await supabase
+      .from('conversations')
+      .upsert({
+        phone_number: phoneNumber,
+        last_ooo_at: now,
+        updated_at: now
+      }, { onConflict: 'phone_number' });
+
+    if (error) {
+      console.log(`⚠️ Erro ao salvar aviso fora do horário no banco: ${error.message}`);
+    }
+  } catch (err) {
+    console.log('⚠️ Erro ao salvar aviso fora do horário no banco:', err.message);
+  }
 }
 
 // Verifica se o bot está pausado para um número (verifica também pelo LID)
@@ -1144,7 +1181,7 @@ app.post('/webhook', async (req, res) => {
         console.log(`👤 Admin está atendendo ${phoneNumber}, bot não responde`);
         return res.status(200).json({ status: 'admin_attending' });
       }
-      
+
       // Sistema de agrupamento de mensagens
       if (pendingMessages.has(phoneNumber)) {
         const pending = pendingMessages.get(phoneNumber);
