@@ -668,22 +668,33 @@ async function sendImage(phoneNumber, imageUrl, caption = '') {
 // LÓGICA DO BOT - RESPOSTAS
 // ============================================
 
-const WELCOME_MESSAGE = `Olá! 👋 Bem-vindo(a) à *Xpace Escola de Dança*! 💃🕺
+const WELCOME_MESSAGE = `Oii! Bem-vindo(a) à *XPACE* 💃✨
 
-Sou o assistente virtual e estou aqui para te ajudar!
+Me diz rapidinho: você quer dançar por diversão, evolução ou virar palco?
+Eu te ajudo a achar a melhor aula em menos de 1 minuto.
 
-Como posso te ajudar hoje?
-
-1️⃣ Ver nossos *planos e preços*
-2️⃣ Conhecer as *modalidades* de dança
-3️⃣ Ver *horários* das aulas
-4️⃣ Agendar uma *aula experimental*
-5️⃣ Saber nossa *localização*
-6️⃣ Falar com um *atendente*
+1️⃣ Quero ver *planos e valores*
+2️⃣ Quero descobrir minha *modalidade ideal*
+3️⃣ Quero ver *horários*
+4️⃣ Quero agendar *aula experimental grátis*
+5️⃣ Quero saber *onde fica*
+6️⃣ Falar com *atendente*
 
 Digite o número da opção ou escreva sua dúvida! 😊
 
 _A qualquer momento, digite *6* para falar com um atendente humano!_`;
+
+const MODALITY_DISCOVERY_MESSAGE = `Perfeito! Vamos achar uma aula com a sua cara 💃✨
+
+Qual vibe combina mais com você hoje?
+
+2️⃣1️⃣ Quero dançar hits, gastar energia e me soltar
+2️⃣2️⃣ Quero coreografia, presença e performance
+2️⃣3️⃣ Quero técnica, postura e evolução
+2️⃣4️⃣ Quero aula para criança/adolescente
+2️⃣5️⃣ Quero luta, força ou condicionamento
+
+Responda com *21*, *22*, *23*, *24* ou *25* 😊`;
 
 async function processMessage(phoneNumber, message) {
   const msgLower = message.toLowerCase().trim();
@@ -773,6 +784,72 @@ Quer agendar uma aula experimental gratuita? Digite *4*! 🎉`
     };
   }
 
+  // Trilha de descoberta de modalidade
+  if (msgLower === '2' || msgLower.match(/(modalidade ideal|qual modalidade|qual aula|combina comigo|descobrir.*modalidade)/)) {
+    return { type: 'text', content: MODALITY_DISCOVERY_MESSAGE };
+  }
+
+  const discoveryOptions = {
+    '21': {
+      title: 'Dançar hits, gastar energia e se soltar',
+      summary: 'Boa! Para essa vibe, eu olharia primeiro *Ritmos*, *K-Pop*, *Forró*, *Gafieira* e *Street Funk*. São aulas com energia, musicalidade e aquela sensação gostosa de sair mais leve do que entrou.',
+      images: [
+        { url: IMAGE_HORARIOS_TER_QUI, caption: '📅 *Terça e Quinta*' },
+        { url: IMAGE_HORARIOS_SEX_SAB, caption: '📅 *Sexta e Sábado*' }
+      ]
+    },
+    '22': {
+      title: 'Coreografia, presença e performance',
+      summary: 'Aí é palco total! As melhores apostas são *Jazz Funk*, *Heels*, *Street Dance/Street Adult* e *K-Pop*. Essas aulas trabalham coreografia, atitude, musicalidade e presença.',
+      images: [
+        { url: IMAGE_HORARIOS_SEG_QUA, caption: '📅 *Segunda e Quarta*' },
+        { url: IMAGE_HORARIOS_TER_QUI, caption: '📅 *Terça e Quinta*' },
+        { url: IMAGE_HORARIOS_SEX_SAB, caption: '📅 *Sexta e Sábado*' }
+      ]
+    },
+    '23': {
+      title: 'Técnica, postura e evolução',
+      summary: 'Excelente escolha. Para evoluir com mais técnica, eu indicaria *Jazz*, *Contemporâneo*, *Ballet*, *Ballet Fit* e *Acrobacia*. São modalidades ótimas para consciência corporal, base e desenvolvimento.',
+      images: [
+        { url: IMAGE_HORARIOS_SEG_QUA, caption: '📅 *Segunda e Quarta*' },
+        { url: IMAGE_HORARIOS_TER_QUI, caption: '📅 *Terça e Quinta*' },
+        { url: IMAGE_HORARIOS_SEX_SAB, caption: '📅 *Sexta e Sábado*' }
+      ]
+    },
+    '24': {
+      title: 'Aula para criança/adolescente',
+      summary: 'Temos opções muito legais para kids e teens: *Hip Hop Kids*, *Hip Hop Baby*, *Street Dance Teens*, *Ballet Baby Class*, *K-Pop* e *Jazz Teens*. A ideia é aprender com energia, acolhimento e evolução no ritmo certo.',
+      images: [
+        { url: IMAGE_HORARIOS_SEG_QUA, caption: '📅 *Segunda e Quarta*' },
+        { url: IMAGE_HORARIOS_TER_QUI, caption: '📅 *Terça e Quinta*' },
+        { url: IMAGE_HORARIOS_SEX_SAB, caption: '📅 *Sexta e Sábado*' }
+      ]
+    },
+    '25': {
+      title: 'Luta, força ou condicionamento',
+      summary: 'Para força, disciplina e condicionamento, as melhores opções são *Muay Thai*, *Jiu Jitsu*, *Ballet Fit* e *Acrobacia*. Dá para cuidar do corpo e ainda sair com sensação de missão cumprida.',
+      images: [
+        { url: IMAGE_HORARIOS_SEG_QUA, caption: '📅 *Segunda e Quarta*' },
+        { url: IMAGE_HORARIOS_SEX_SAB, caption: '📅 *Sexta e Sábado*' }
+      ]
+    }
+  };
+
+  if (discoveryOptions[msgLower]) {
+    const option = discoveryOptions[msgLower];
+    return {
+      type: 'multiple_images',
+      images: option.images,
+      content: `✨ *${option.title}*
+
+${option.summary}
+
+Confira acima os horários que mais combinam com essa escolha.
+
+Quer sentir na prática? Digite *4* para agendar sua aula experimental grátis, ou *6* para falar com um atendente.`
+    };
+  }
+
   // Mapeamento de modalidades por dia (Jazz e Jazz Funk são diferentes!)
   const MODALIDADES_SEG_QUA = ['street dance', 'ritmos', 'teatro', 'populares', 'contemporâneo', 'contemporaneo', 'fit dance', 'fitdance', 'acrobacia', 'muay thai'];
   const MODALIDADES_TER_QUI = ['street dance', 'baby class', 'baby', 'heels', 'ritmos', 'muay thai', 'dança de salão', 'danca de salao', 'salão', 'salao', 'k-pop', 'kpop', 'k pop', 'ballet', 'balé'];
@@ -835,23 +912,9 @@ Quer experimentar? Digite *4* para agendar sua aula experimental! 🎉`
     }
   }
 
-  // Opção 2 ou perguntas gerais sobre modalidades (envia todas as imagens)
-  if (msgLower === '2' || msgLower.match(/(modalidade|estilo|tipo de dança|aula|curso|dança)/)) {
-    return {
-      type: 'multiple_images',
-      images: [
-        { url: IMAGE_HORARIOS_SEG_QUA, caption: '📅 *Segunda e Quarta*' },
-        { url: IMAGE_HORARIOS_TER_QUI, caption: '📅 *Terça e Quinta*' },
-        { url: IMAGE_HORARIOS_SEX_SAB, caption: '📅 *Sexta e Sábado*' }
-      ],
-      content: `💃 *Nossas Modalidades e Horários!*
-
-Confira acima nossa grade completa!
-
-🔗 Mais informações: ${LINK_ESCOLA}
-
-Quer experimentar? Digite *4* para agendar sua aula experimental! 🎉`
-    };
+  // Perguntas gerais sobre modalidades iniciam a trilha em vez de despejar a grade completa
+  if (msgLower.match(/(modalidade|estilo|tipo de dança|curso|dança)/)) {
+    return { type: 'text', content: MODALITY_DISCOVERY_MESSAGE };
   }
 
   // Opção 3 ou perguntas sobre horários
