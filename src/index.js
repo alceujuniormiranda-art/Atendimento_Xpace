@@ -108,13 +108,11 @@ Você é o assistente virtual da Xpace Escola de Dança, localizada na Rua Tijuc
 INFORMAÇÕES DA ESCOLA:
 
 PLANOS E PREÇOS:
-- Plano Anual: R$165/mês
-- Plano Semestral: R$195/mês
-- Plano Mensal: R$215/mês
+- Valores mensais, 1 aula por semana: Mensal R$143; Semestral R$126,50; Anual R$110.
+- Valores mensais, 2 aulas por semana: Mensal R$232; Semestral R$205; Anual R$178.
+- Full Pass anual: R$499/mês, acesso ilimitado a qualquer modalidade.
+- Para condições dos planos, matrícula e modalidade adicional, peça ao cliente para consultar a equipe.
 - Aceitamos Wellhub (antigo Gympass) e TotalPass APENAS para as modalidades: Ritmos, Jazz Funk (Terça), Heels (Quinta), Street Funk, Contemporâneo, Jazz, Ballet Fit e Muay Thai. (NUNCA use termos como "ZONA", "Rua Funk" ou "Salto" para se referir a estas modalidades).
-- Turmas 1x na semana: Anual R$100, Semestral R$115, Mensal R$130
-- Modalidade adicional: R$75/mês
-- Matrícula: R$80
 
 MODALIDADES E HORÁRIOS:
 
@@ -696,6 +694,22 @@ Qual vibe combina mais com você hoje?
 
 Responda com *21*, *22*, *23*, *24* ou *25* 😊`;
 
+const PLANOS_MESSAGE = `💰 *Confira nossos planos!*
+
+📌 *1x por semana:*
+• Mensal: R$143/mês
+• Semestral: R$126,50/mês
+• Anual: R$110/mês
+
+📌 *2x por semana:*
+• Mensal: R$232/mês
+• Semestral: R$205/mês
+• Anual: R$178/mês
+
+✨ *Full Pass anual:* R$499/mês, com acesso ilimitado a qualquer modalidade.
+
+Consulte nossa equipe sobre as condições dos planos. Quer agendar uma aula experimental? Digite *4*! 🎉`;
+
 async function processMessage(phoneNumber, message) {
   const msgLower = message.toLowerCase().trim();
 
@@ -747,40 +761,12 @@ async function processMessage(phoneNumber, message) {
       return {
         type: 'image',
         imageUrl: IMAGE_PLANOS_URL,
-        caption: `💰 *Confira nossos planos!*
-
-✨ *Plano Anual:* R$165/mês
-✨ *Plano Semestral:* R$195/mês  
-✨ *Plano Mensal:* R$215/mês
-
-📌 *Turmas 1x na semana:*
-• Anual: R$100/mês
-• Semestral: R$115/mês
-• Mensal: R$130/mês
-
-➕ Modalidade adicional: R$75/mês
-📝 Matrícula: R$80
-
-Quer agendar uma aula experimental gratuita? Digite *4*! 🎉`
+        caption: PLANOS_MESSAGE
       };
     }
     return {
       type: 'text',
-      content: `💰 *Nossos Planos:*
-
-✨ *Plano Anual:* R$165/mês
-✨ *Plano Semestral:* R$195/mês  
-✨ *Plano Mensal:* R$215/mês
-
-📌 *Turmas 1x na semana:*
-• Anual: R$100/mês
-• Semestral: R$115/mês
-• Mensal: R$130/mês
-
-➕ Modalidade adicional: R$75/mês
-📝 Matrícula: R$80
-
-Quer agendar uma aula experimental gratuita? Digite *4*! 🎉`
+      content: PLANOS_MESSAGE
     };
   }
 
