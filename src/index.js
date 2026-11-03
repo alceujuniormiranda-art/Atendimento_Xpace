@@ -27,6 +27,7 @@ const ZAPI_HEADERS = {
 
 // Outras configurações
 const BOT_TIMEOUT_MINUTES = 720; // Forçado para 12 horas (720 minutos) para garantir estabilidade no Render
+const HUMAN_ATTENDANCE_DAYS = 30;
 const MESSAGE_GROUP_DELAY = 5000; // 5 segundos para agrupar mensagens
 const OOO_TIMEOUT_MINUTES = 720; // 12 horas para não repetir mensagem de fora do horário
 const WEBHOOK_DEDUP_TTL_MS = 15 * 60 * 1000; // Evita reprocessar retries duplicados do Z-API
@@ -497,10 +498,10 @@ async function logMessage(phoneNumber, message, isFromBot, isFromAdmin = false) 
     });
 }
 
-// Verificar se o admin está atendendo (mandou mensagem nos últimos 5 horas)
+// Verificar se o admin mandou mensagem durante o prazo de atendimento humano
 // Verifica tanto pelo número real quanto pelo LID correspondente
 async function isAdminAttending(phoneNumber) {
-  const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
+  const attendanceCutoff = new Date(Date.now() - HUMAN_ATTENDANCE_DAYS * 24 * 60 * 60 * 1000).toISOString();
   
   // Lista de números para verificar (número real + LID se existir)
   const numbersToCheck = [phoneNumber];
@@ -512,19 +513,19 @@ async function isAdminAttending(phoneNumber) {
     numbersToCheck.push(`${lidId}@lid`);
   }
   
-  // Buscar a última mensagem do ADMIN para esse número ou LID nos últimos 12 horas
+  // Buscar a última mensagem do ADMIN para esse número ou LID no período configurado
   const { data, error } = await supabase
     .from('message_logs')
     .select('is_from_admin, created_at, phone_number')
     .in('phone_number', numbersToCheck)
     .eq('is_from_admin', true)  // Buscar APENAS mensagens do admin
-    .gte('created_at', twelveHoursAgo)
+    .gte('created_at', attendanceCutoff)
     .order('created_at', { ascending: false })
     .limit(1);
   
   if (error || !data || data.length === 0) return false;
   
-  // Se existe mensagem do admin nos últimos 12 horas, ele está atendendo
+  // Uma nova mensagem do admin renova o prazo de atendimento humano
   console.log(`🔍 Admin atendeu ${phoneNumber} (encontrado em ${data[0].phone_number}) às ${data[0].created_at}`);
   return true;
 }
@@ -1140,7 +1141,7 @@ app.post('/webhook', async (req, res) => {
         
         // Registrar que o admin está atendendo esse contato
         await logMessage(phoneNumber, message, false, true);
-        console.log(`👤 Admin enviou mensagem para ${phoneNumber} - bot pausado automaticamente por 12h`);
+        console.log(`👤 Admin enviou mensagem para ${phoneNumber} - atendimento humano por ${HUMAN_ATTENDANCE_DAYS} dias`);
         
         // Cancelar qualquer mensagem pendente no agrupamento para esse cliente
         if (pendingMessages.has(phoneNumber)) {
