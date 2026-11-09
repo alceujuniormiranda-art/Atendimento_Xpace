@@ -40,6 +40,7 @@ const lastOOOMessageByPhone = new Map(); // phoneNumber -> timestamp
 // Cache de mapeamento LID -> telefone (em memória para performance)
 const lidToPhoneCache = new Map();
 const LINK_ESCOLA = process.env.LINK_ESCOLA || 'https://links.nextfit.bio/5e3eXmh';
+const LINK_AGENDAMENTO = 'https://www.xpacebox.com.br/aula-experimental';
 const IMAGE_PLANOS_URL = 'https://raw.githubusercontent.com/alceujuniormiranda-art/Atendimento_Xpace/main/assets/planos-outubro-2026.jpeg';
 const IMAGE_HORARIOS_SEG_QUA = process.env.IMAGE_HORARIOS_SEG_QUA || 'https://raw.githubusercontent.com/alceujuniormiranda-art/Atendimento_Xpace/main/assets/horarios-segunda-quarta.jpeg';
 const IMAGE_HORARIOS_TER_QUI = process.env.IMAGE_HORARIOS_TER_QUI || 'https://raw.githubusercontent.com/alceujuniormiranda-art/Atendimento_Xpace/main/assets/horarios-terca-quinta.jpeg';
@@ -935,9 +936,9 @@ Que legal que você quer conhecer a nossa escola! 💃🕺
 📌 *Como funciona:*
 As suas **duas primeiras aulas experimentais são gratuitas!** ✨ Após isso, caso queira continuar sem um plano mensal, o valor da aula avulsa é de **R$ 40,00**.
 
-Para agendar sua aula experimental, acesse le link abaixo e escolha o melhor horário:
+📅 *Agende sua aula experimental no site oficial da Xpace:*
 
-🔗 ${LINK_ESCOLA}
+${LINK_AGENDAMENTO}
 
 Ou se preferir, digite *6* para falar diretamente com um atendente e agendar! 😊
 
