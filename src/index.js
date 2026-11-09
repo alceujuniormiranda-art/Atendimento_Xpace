@@ -41,7 +41,7 @@ const lastOOOMessageByPhone = new Map(); // phoneNumber -> timestamp
 const lidToPhoneCache = new Map();
 const LINK_ESCOLA = process.env.LINK_ESCOLA || 'https://links.nextfit.bio/5e3eXmh';
 const LINK_AGENDAMENTO = 'https://www.xpacebox.com.br/aula-experimental';
-const IMAGE_PLANOS_URL = 'https://raw.githubusercontent.com/alceujuniormiranda-art/Atendimento_Xpace/main/assets/planos-outubro-2026.jpeg';
+const IMAGE_PLANOS_URL = 'https://raw.githubusercontent.com/alceujuniormiranda-art/Atendimento_Xpace/main/assets/planos-novembro-2026.jpeg';
 const IMAGE_HORARIOS_SEG_QUA = process.env.IMAGE_HORARIOS_SEG_QUA || 'https://raw.githubusercontent.com/alceujuniormiranda-art/Atendimento_Xpace/main/assets/horarios-segunda-quarta.jpeg';
 const IMAGE_HORARIOS_TER_QUI = process.env.IMAGE_HORARIOS_TER_QUI || 'https://raw.githubusercontent.com/alceujuniormiranda-art/Atendimento_Xpace/main/assets/horarios-terca-quinta.jpeg';
 const IMAGE_HORARIOS_SEX_SAB = process.env.IMAGE_HORARIOS_SEX_SAB || 'https://raw.githubusercontent.com/alceujuniormiranda-art/Atendimento_Xpace/main/assets/horarios-sexta-sabado.jpeg';
@@ -110,8 +110,8 @@ Você é o assistente virtual da Xpace Escola de Dança, localizada na Rua Tijuc
 INFORMAÇÕES DA ESCOLA:
 
 PLANOS E PREÇOS:
-- Valores mensais, 1 aula por semana: Mensal R$143; Semestral R$126,50; Anual R$110.
-- Valores mensais, 2 aulas por semana: Mensal R$232; Semestral R$205; Anual R$178.
+- Valores mensais, 1 aula por semana: Mensal R$145; Semestral R$130; Anual R$115.
+- Valores mensais, 2 aulas por semana: Mensal R$235; Semestral R$205; Anual R$180.
 - Full Pass anual: R$499/mês, acesso ilimitado a qualquer modalidade.
 - Para condições dos planos, matrícula e modalidade adicional, peça ao cliente para consultar a equipe.
 - Aceitamos Wellhub (antigo Gympass) e TotalPass APENAS para as modalidades: Ritmos, Jazz Funk (Terça), Heels (Quinta), Street Funk, Contemporâneo, Jazz, Ballet Fit e Muay Thai. (NUNCA use termos como "ZONA", "Rua Funk" ou "Salto" para se referir a estas modalidades).
@@ -699,14 +699,14 @@ Responda com *21*, *22*, *23*, *24* ou *25* 😊`;
 const PLANOS_MESSAGE = `💰 *Confira nossos planos!*
 
 📌 *1x por semana:*
-• Mensal: R$143/mês
-• Semestral: R$126,50/mês
-• Anual: R$110/mês
+• Mensal: R$145/mês
+• Semestral: R$130/mês
+• Anual: R$115/mês
 
 📌 *2x por semana:*
-• Mensal: R$232/mês
+• Mensal: R$235/mês
 • Semestral: R$205/mês
-• Anual: R$178/mês
+• Anual: R$180/mês
 
 ✨ *Full Pass anual:* R$499/mês, com acesso ilimitado a qualquer modalidade.
 
